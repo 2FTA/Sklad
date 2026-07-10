@@ -1,4 +1,5 @@
-const API_BASE = '/api';
+// Берем адрес сервера из переменной окружения или используем относительный путь
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 function getToken() {
   return localStorage.getItem('token');
