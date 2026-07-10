@@ -1,0 +1,70 @@
+.page-layout {
+  min-height: 100vh;
+  background: #f8fafc;
+}
+
+.bottom-form {
+  margin-top: 2rem;
+  background: #fff;
+  border-radius: 10px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.bottom-form h2 {
+  font-size: 1.1rem;
+  color: #1e293b;
+  margin-bottom: 1rem;
+}
+
+.bottom-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.bottom-form-row .form-group {
+  flex: 1;
+  min-width: 150px;
+}
+
+.password-display {
+  font-family: monospace;
+  background: #f1f5f9;
+  padding: 0.35rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.inline-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.inline-edit input {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  min-width: 140px;
+}
+
+.btn-show {
+  background: #6366f1;
+  color: #fff;
+}
+
+.btn-show:hover {
+  background: #4f46e5;
+}
+
+.btn-change {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.btn-change:hover {
+  background: #d97706;
+}

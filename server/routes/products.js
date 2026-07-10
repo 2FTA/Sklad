@@ -6,6 +6,21 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
+router.get('/all', adminOnly, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT p.id, p.name, p.quantity, p.user_id, u.login AS user_login
+      FROM products p
+      JOIN users u ON u.id = p.user_id
+      ORDER BY u.login, p.name
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 router.get('/', async (req, res) => {
   try {
     let userId = req.user.id;
@@ -20,6 +35,43 @@ router.get('/', async (req, res) => {
     );
 
     res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+router.post('/all-users', adminOnly, async (req, res) => {
+  const { name, quantity = 0 } = req.body;
+
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Укажите название товара' });
+  }
+
+  try {
+    const users = await pool.query('SELECT id FROM users ORDER BY id');
+    const created = [];
+
+    for (const user of users.rows) {
+      const existing = await pool.query(
+        'SELECT id FROM products WHERE user_id = $1 AND name = $2',
+        [user.id, name.trim()]
+      );
+
+      if (existing.rows.length === 0) {
+        const result = await pool.query(
+          'INSERT INTO products (user_id, name, quantity) VALUES ($1, $2, $3) RETURNING id, name, quantity, user_id',
+          [user.id, name.trim(), parseInt(quantity, 10) || 0]
+        );
+        created.push(result.rows[0]);
+      }
+    }
+
+    if (created.length === 0) {
+      return res.status(409).json({ error: 'Товар с таким названием уже есть у всех пользователей' });
+    }
+
+    res.status(201).json({ created: created.length, products: created });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка сервера' });

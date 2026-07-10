@@ -43,8 +43,24 @@ export const api = {
   deleteUser: (id) =>
     request(`/users/${id}`, { method: 'DELETE' }),
 
+  getUserPassword: (id) => request(`/users/${id}/password`),
+
+  changeUserPassword: (id, password) =>
+    request(`/users/${id}/password`, {
+      method: 'PUT',
+      body: JSON.stringify({ password }),
+    }),
+
   getProducts: (userId) =>
     request(userId ? `/products?userId=${userId}` : '/products'),
+
+  getAllProducts: () => request('/products/all'),
+
+  createProductForAllUsers: (name, quantity = 0) =>
+    request('/products/all-users', {
+      method: 'POST',
+      body: JSON.stringify({ name, quantity }),
+    }),
 
   createProduct: (name, userId, quantity = 0) =>
     request('/products', {

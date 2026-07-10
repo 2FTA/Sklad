@@ -44,8 +44,13 @@ async function initDatabase() {
       id SERIAL PRIMARY KEY,
       login VARCHAR(100) UNIQUE NOT NULL,
       password_hash VARCHAR(255) NOT NULL,
+      password_plain VARCHAR(255),
       role VARCHAR(20) NOT NULL DEFAULT 'user'
     )
+  `);
+
+  await client.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS password_plain VARCHAR(255)
   `);
 
   await client.query(`
@@ -68,8 +73,8 @@ async function initDatabase() {
     if (exists.rows.length === 0) {
       const hash = await bcrypt.hash(u.password, 10);
       const inserted = await client.query(
-        'INSERT INTO users (login, password_hash, role) VALUES ($1, $2, $3) RETURNING id',
-        [u.login, hash, u.role]
+        'INSERT INTO users (login, password_hash, password_plain, role) VALUES ($1, $2, $3, $4) RETURNING id',
+        [u.login, hash, u.password, u.role]
       );
       console.log(`Создан пользователь: ${u.login}`);
 
@@ -97,6 +102,10 @@ async function initDatabase() {
         console.log('  Добавлены товары для shop2');
       }
     } else {
+      await client.query(
+        'UPDATE users SET password_plain = $1 WHERE login = $2 AND password_plain IS NULL',
+        [u.password, u.login]
+      );
       console.log(`Пользователь ${u.login} уже существует`);
     }
   }

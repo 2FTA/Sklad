@@ -19,6 +19,60 @@ router.get('/', async (req, res) => {
   }
 });
 
+router.get('/:id/password', async (req, res) => {
+  const userId = parseInt(req.params.id, 10);
+
+  try {
+    const result = await pool.query(
+      'SELECT login, password_plain FROM users WHERE id = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    const { login, password_plain } = result.rows[0];
+
+    if (!password_plain) {
+      return res.status(404).json({ error: 'Пароль недоступен для этого пользователя' });
+    }
+
+    res.json({ login, password: password_plain });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+router.put('/:id/password', async (req, res) => {
+  const userId = parseInt(req.params.id, 10);
+  const { password } = req.body;
+
+  if (!password) {
+    return res.status(400).json({ error: 'Введите новый пароль' });
+  }
+
+  try {
+    const user = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+
+    if (user.rows.length === 0) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+    await pool.query(
+      'UPDATE users SET password_hash = $1, password_plain = $2 WHERE id = $3',
+      [hash, password, userId]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 router.post('/', async (req, res) => {
   const { login, password, role } = req.body;
 
@@ -38,8 +92,8 @@ router.post('/', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      'INSERT INTO users (login, password_hash, role) VALUES ($1, $2, $3) RETURNING id, login, role',
-      [login.trim(), hash, userRole]
+      'INSERT INTO users (login, password_hash, password_plain, role) VALUES ($1, $2, $3, $4) RETURNING id, login, role',
+      [login.trim(), hash, password, userRole]
     );
 
     res.status(201).json(result.rows[0]);
