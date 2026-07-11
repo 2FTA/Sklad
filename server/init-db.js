@@ -69,9 +69,21 @@ async function initDatabase() {
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       date DATE NOT NULL,
       quantity INTEGER,
-      shipments INTEGER NOT NULL DEFAULT 0,
-      UNIQUE(product_id, date)
+      shipments INTEGER NOT NULL DEFAULT 0
     )
+  `);
+
+  await client.query(`
+    DELETE FROM daily_stocks a
+    USING daily_stocks b
+    WHERE a.id > b.id
+      AND a.product_id = b.product_id
+      AND a.date = b.date
+  `);
+
+  await client.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_stocks_product_date
+    ON daily_stocks (product_id, date)
   `);
 
   const users = [
