@@ -1,3 +1,18 @@
+async function ensureUsersSchema(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      login VARCHAR(100) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      role VARCHAR(20) NOT NULL DEFAULT 'user'
+    )
+  `);
+
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS password_plain VARCHAR(255)
+  `);
+}
+
 async function ensureDailyStocksSchema(pool) {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS daily_stocks (
@@ -24,4 +39,9 @@ async function ensureDailyStocksSchema(pool) {
   `);
 }
 
-module.exports = { ensureDailyStocksSchema };
+async function ensureSchema(pool) {
+  await ensureUsersSchema(pool);
+  await ensureDailyStocksSchema(pool);
+}
+
+module.exports = { ensureSchema, ensureUsersSchema, ensureDailyStocksSchema };

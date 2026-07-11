@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const pool = require('./db');
-const { ensureDailyStocksSchema } = require('./ensure-schema');
+const { ensureSchema } = require('./ensure-schema');
 
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
@@ -35,7 +35,7 @@ app.get('/health', (req, res) => {
 
 async function start() {
   try {
-    await ensureDailyStocksSchema(pool);
+    await ensureSchema(pool);
     app.listen(PORT, () => {
       console.log(`Сервер запущен: http://localhost:${PORT}`);
     });
