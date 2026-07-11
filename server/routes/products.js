@@ -6,6 +6,111 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
+router.get('/aggregated', adminOnly, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT MIN(p.id) AS id, p.name, SUM(p.quantity)::int AS total_quantity
+      FROM products p
+      GROUP BY p.name
+      ORDER BY p.name
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+router.post('/global', adminOnly, async (req, res) => {
+  const { name, quantity = 0 } = req.body;
+
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Укажите название товара' });
+  }
+
+  try {
+    const users = await pool.query('SELECT id FROM users ORDER BY id');
+    const created = [];
+
+    for (const user of users.rows) {
+      const existing = await pool.query(
+        'SELECT id FROM products WHERE user_id = $1 AND name = $2',
+        [user.id, name.trim()]
+      );
+
+      if (existing.rows.length === 0) {
+        const result = await pool.query(
+          'INSERT INTO products (user_id, name, quantity) VALUES ($1, $2, $3) RETURNING id, name, quantity, user_id',
+          [user.id, name.trim(), parseInt(quantity, 10) || 0]
+        );
+        created.push(result.rows[0]);
+      }
+    }
+
+    if (created.length === 0) {
+      return res.status(409).json({ error: 'Товар с таким названием уже существует' });
+    }
+
+    res.status(201).json({ name: name.trim(), created: created.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+router.put('/global/:id', adminOnly, async (req, res) => {
+  const productId = parseInt(req.params.id, 10);
+  const { name } = req.body;
+
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: 'Укажите название' });
+  }
+
+  try {
+    const product = await pool.query('SELECT name FROM products WHERE id = $1', [productId]);
+
+    if (product.rows.length === 0) {
+      return res.status(404).json({ error: 'Товар не найден' });
+    }
+
+    const oldName = product.rows[0].name;
+    const newName = name.trim();
+
+    const result = await pool.query(
+      'UPDATE products SET name = $1 WHERE name = $2 RETURNING id',
+      [newName, oldName]
+    );
+
+    res.json({ name: newName, updated: result.rows.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+router.delete('/global/:id', adminOnly, async (req, res) => {
+  const productId = parseInt(req.params.id, 10);
+
+  try {
+    const product = await pool.query('SELECT name FROM products WHERE id = $1', [productId]);
+
+    if (product.rows.length === 0) {
+      return res.status(404).json({ error: 'Товар не найден' });
+    }
+
+    const productName = product.rows[0].name;
+    const result = await pool.query(
+      'DELETE FROM products WHERE name = $1 RETURNING id',
+      [productName]
+    );
+
+    res.json({ success: true, deleted: result.rows.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 router.get('/all', adminOnly, async (req, res) => {
   try {
     const result = await pool.query(`

@@ -21,7 +21,7 @@ function ProductsManagement() {
   const loadProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await api.getAllProducts();
+      const data = await api.getAggregatedProducts();
       setProducts(data);
     } catch (err) {
       setError(err.message);
@@ -41,9 +41,9 @@ function ProductsManagement() {
     }
 
     try {
-      await api.updateName(productId, editName);
+      await api.updateGlobalProduct(productId, editName);
       setEditingId(null);
-      flash('Название изменено');
+      flash('Название изменено у всех пользователей');
       await loadProducts();
     } catch (err) {
       setError(err.message);
@@ -51,11 +51,11 @@ function ProductsManagement() {
   };
 
   const handleDelete = async (product) => {
-    if (!confirm(`Удалить товар "${product.name}" у пользователя ${product.user_login}?`)) return;
+    if (!confirm(`Удалить товар "${product.name}" у всех пользователей?`)) return;
 
     try {
-      await api.deleteProduct(product.id);
-      flash('Товар удалён');
+      await api.deleteGlobalProduct(product.id);
+      flash('Товар удалён у всех пользователей');
       await loadProducts();
     } catch (err) {
       setError(err.message);
@@ -65,9 +65,9 @@ function ProductsManagement() {
   const handleAddProduct = async (e) => {
     e.preventDefault();
     try {
-      const result = await api.createProductForAllUsers(newProductName);
+      await api.createGlobalProduct(newProductName);
       setNewProductName('');
-      flash(`Товар добавлен для ${result.created} пользователей`);
+      flash('Товар добавлен всем пользователям');
       await loadProducts();
     } catch (err) {
       setError(err.message);
@@ -95,16 +95,14 @@ function ProductsManagement() {
             <table className="products-table">
               <thead>
                 <tr>
-                  <th>Пользователь</th>
                   <th>Название</th>
-                  <th>Количество</th>
+                  <th>Общее количество</th>
                   <th>Действия</th>
                 </tr>
               </thead>
               <tbody>
                 {products.map((product) => (
                   <tr key={product.id}>
-                    <td>{product.user_login}</td>
                     <td>
                       {editingId === product.id ? (
                         <div className="inline-edit">
@@ -129,7 +127,7 @@ function ProductsManagement() {
                         product.name
                       )}
                     </td>
-                    <td className="quantity-cell">{product.quantity}</td>
+                    <td className="quantity-cell">{product.total_quantity}</td>
                     <td>
                       <div className="actions-cell">
                         {editingId !== product.id && (
