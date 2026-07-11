@@ -1,0 +1,118 @@
+const express = require('express');
+const pool = require('../db');
+const { authMiddleware } = require('../middleware/auth');
+
+const router = express.Router();
+
+router.use(authMiddleware);
+
+function formatDate(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+function defaultDateRange() {
+  const end = new Date();
+  end.setHours(0, 0, 0, 0);
+  const start = new Date(end);
+  start.setDate(start.getDate() - 14);
+  return { startDate: formatDate(start), endDate: formatDate(end) };
+}
+
+router.get('/:userId', async (req, res) => {
+  const userId = parseInt(req.params.userId, 10);
+  const defaults = defaultDateRange();
+  const startDate = req.query.startDate || defaults.startDate;
+  const endDate = req.query.endDate || defaults.endDate;
+
+  if (req.user.role !== 'admin' && req.user.id !== userId) {
+    return res.status(403).json({ error: 'Доступ запрещён' });
+  }
+
+  try {
+    const user = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (user.rows.length === 0) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    const result = await pool.query(
+      `SELECT p.id AS "productId", p.name AS "productName",
+              ds.date::text AS date, ds.quantity, ds.shipments
+       FROM products p
+       LEFT JOIN daily_stocks ds ON ds.product_id = p.id
+         AND ds.date >= $2::date AND ds.date <= $3::date
+       WHERE p.user_id = $1
+       ORDER BY p.name, ds.date DESC`,
+      [userId, startDate, endDate]
+    );
+
+    const stocks = result.rows
+      .filter((row) => row.date !== null)
+      .map((row) => ({
+        productId: row.productId,
+        productName: row.productName,
+        date: row.date,
+        quantity: row.quantity,
+        shipments: row.shipments ?? 0,
+      }));
+
+    res.json(stocks);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+router.put('/:userId/shipment', async (req, res) => {
+  const userId = parseInt(req.params.userId, 10);
+  const { productId, date, shipments } = req.body;
+
+  if (!productId || !date) {
+    return res.status(400).json({ error: 'Укажите товар и дату' });
+  }
+
+  if (shipments === undefined || shipments === null || isNaN(parseInt(shipments, 10))) {
+    return res.status(400).json({ error: 'Укажите корректное количество отгрузок' });
+  }
+
+  if (req.user.role !== 'admin' && req.user.id !== userId) {
+    return res.status(403).json({ error: 'Доступ запрещён' });
+  }
+
+  try {
+    const product = await pool.query(
+      'SELECT id, user_id FROM products WHERE id = $1 AND user_id = $2',
+      [parseInt(productId, 10), userId]
+    );
+
+    if (product.rows.length === 0) {
+      return res.status(404).json({ error: 'Товар не найден' });
+    }
+
+    const shipmentValue = parseInt(shipments, 10);
+
+    const result = await pool.query(
+      `INSERT INTO daily_stocks (product_id, user_id, date, quantity, shipments)
+       VALUES ($1, $2, $3::date, NULL, $4)
+       ON CONFLICT (product_id, date)
+       DO UPDATE SET shipments = $4
+       RETURNING product_id AS "productId", date::text AS date, quantity, shipments`,
+      [parseInt(productId, 10), userId, date, shipmentValue]
+    );
+
+    const row = result.rows[0];
+    const productInfo = await pool.query('SELECT name FROM products WHERE id = $1', [productId]);
+
+    res.json({
+      productId: row.productId,
+      productName: productInfo.rows[0].name,
+      date: row.date,
+      quantity: row.quantity,
+      shipments: row.shipments,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+module.exports = router;

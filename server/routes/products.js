@@ -99,6 +99,16 @@ router.delete('/global/:id', adminOnly, async (req, res) => {
     }
 
     const productName = product.rows[0].name;
+
+    const productIds = await pool.query(
+      'SELECT id FROM products WHERE name = $1',
+      [productName]
+    );
+
+    for (const row of productIds.rows) {
+      await pool.query('DELETE FROM daily_stocks WHERE product_id = $1', [row.id]);
+    }
+
     const result = await pool.query(
       'DELETE FROM products WHERE name = $1 RETURNING id',
       [productName]

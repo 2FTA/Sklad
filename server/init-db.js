@@ -62,6 +62,18 @@ async function initDatabase() {
     )
   `);
 
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS daily_stocks (
+      id SERIAL PRIMARY KEY,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      date DATE NOT NULL,
+      quantity INTEGER,
+      shipments INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(product_id, date)
+    )
+  `);
+
   const users = [
     { login: 'admin', password: 'admin123', role: 'admin' },
     { login: 'shop1', password: '123456', role: 'user' },

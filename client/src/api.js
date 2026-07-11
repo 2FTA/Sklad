@@ -99,6 +99,20 @@ export const api = {
 
   deleteProduct: (id) =>
     request(`/products/${id}`, { method: 'DELETE' }),
+
+  getStocks: (userId, startDate, endDate) => {
+    const params = new URLSearchParams();
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    const query = params.toString();
+    return request(`/stocks/${userId}${query ? `?${query}` : ''}`);
+  },
+
+  updateShipment: (userId, productId, date, shipments) =>
+    request(`/stocks/${userId}/shipment`, {
+      method: 'PUT',
+      body: JSON.stringify({ productId, date, shipments }),
+    }),
 };
 
 export function saveAuth(token, user) {

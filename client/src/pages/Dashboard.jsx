@@ -1,7 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, clearAuth, getStoredUser } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
+import {
+  getLast15Days,
+  formatDateLabel,
+  isMonday,
+  toISODate,
+  buildStockMap,
+  getStockDiff,
+} from '../utils/dates';
 import './Dashboard.css';
 
 function Dashboard() {
@@ -14,16 +22,26 @@ function Dashboard() {
     isAdmin ? null : currentUser?.id
   );
   const [products, setProducts] = useState([]);
+  const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [qtyInputs, setQtyInputs] = useState({});
+  const [shipmentInputs, setShipmentInputs] = useState({});
+
+  const dates = useMemo(() => getLast15Days(), []);
+  const dateRange = useMemo(() => {
+    const startDate = toISODate(dates[dates.length - 1]);
+    const endDate = toISODate(dates[0]);
+    return { startDate, endDate };
+  }, [dates]);
 
   const selectedUser = users.find((u) => u.id === selectedUserId);
   const displayName = isAdmin
     ? selectedUser?.login || '—'
     : currentUser?.login;
+
+  const stockMap = useMemo(() => buildStockMap(stocks), [stocks]);
 
   const loadUsers = useCallback(async () => {
     if (!isAdmin) return;
@@ -38,33 +56,39 @@ function Dashboard() {
     }
   }, [isAdmin, selectedUserId]);
 
-  const loadProducts = useCallback(async () => {
+  const loadData = useCallback(async () => {
     const userId = isAdmin ? selectedUserId : currentUser?.id;
     if (!userId) return;
 
     setLoading(true);
     try {
-      const data = await api.getProducts(isAdmin ? userId : null);
-      setProducts(data);
+      const [productsData, stocksData] = await Promise.all([
+        api.getProducts(isAdmin ? userId : null),
+        api.getStocks(userId, dateRange.startDate, dateRange.endDate),
+      ]);
+
+      setProducts(productsData);
+      setStocks(stocksData);
+
       const inputs = {};
-      data.forEach((p) => {
-        inputs[p.id] = p.quantity;
-      });
-      setQtyInputs(inputs);
+      for (const s of stocksData) {
+        inputs[`${s.productId}-${s.date}`] = s.shipments ?? 0;
+      }
+      setShipmentInputs(inputs);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, selectedUserId, currentUser?.id]);
+  }, [isAdmin, selectedUserId, currentUser?.id, dateRange]);
 
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
 
   useEffect(() => {
-    loadProducts();
-  }, [loadProducts]);
+    loadData();
+  }, [loadData]);
 
   const flash = (msg) => {
     setSuccess(msg);
@@ -81,14 +105,113 @@ function Dashboard() {
     setSidebarOpen(false);
   };
 
-  const handleUpdateQuantity = async (productId) => {
+  const getCellData = (productId, dateStr) => {
+    return stockMap[`${productId}-${dateStr}`] || null;
+  };
+
+  const getQuantity = (productId, dateStr) => {
+    const cell = getCellData(productId, dateStr);
+    return cell?.quantity ?? null;
+  };
+
+  const todayStr = toISODate(dates[0]);
+
+  const storeTotal = useMemo(() => {
+    let total = 0;
+    for (const product of products) {
+      const key = `${product.id}-${todayStr}`;
+      const cell = stockMap[key];
+      if (!cell) continue;
+
+      if (cell.quantity !== null && cell.quantity !== undefined) {
+        total += cell.quantity;
+      }
+
+      const shipment =
+        shipmentInputs[key] !== undefined
+          ? parseInt(shipmentInputs[key], 10) || 0
+          : cell.shipments ?? 0;
+      total += shipment;
+    }
+    return total;
+  }, [products, stockMap, shipmentInputs, todayStr]);
+
+  const handleShipmentChange = (productId, dateStr, value) => {
+    setShipmentInputs((prev) => ({
+      ...prev,
+      [`${productId}-${dateStr}`]: value,
+    }));
+  };
+
+  const handleShipmentSave = async (productId, dateStr) => {
+    const userId = isAdmin ? selectedUserId : currentUser?.id;
+    const key = `${productId}-${dateStr}`;
+    const value = shipmentInputs[key];
+
+    if (value === undefined || value === '') return;
+
     try {
-      await api.updateQuantity(productId, qtyInputs[productId]);
-      flash('Количество обновлено');
-      await loadProducts();
+      await api.updateShipment(userId, productId, dateStr, parseInt(value, 10) || 0);
+      flash('Отгрузка сохранена');
+      await loadData();
     } catch (err) {
       setError(err.message);
     }
+  };
+
+  const renderCell = (product, dateIndex) => {
+    const dateStr = toISODate(dates[dateIndex]);
+    const cell = getCellData(product.id, dateStr);
+
+    if (cell === null) {
+      return (
+        <td key={product.id} className="stock-cell empty-cell">
+          —
+        </td>
+      );
+    }
+
+    const quantity = cell.quantity;
+    const hasQuantity = quantity !== null && quantity !== undefined;
+
+    const prevQuantity =
+      dateIndex < dates.length - 1
+        ? getQuantity(product.id, toISODate(dates[dateIndex + 1]))
+        : null;
+
+    const diff =
+      dateIndex < dates.length - 1
+        ? getStockDiff(hasQuantity ? quantity : null, prevQuantity)
+        : null;
+
+    const shipmentKey = `${product.id}-${dateStr}`;
+    const shipmentValue =
+      shipmentInputs[shipmentKey] !== undefined
+        ? shipmentInputs[shipmentKey]
+        : cell.shipments ?? '';
+
+    return (
+      <td key={product.id} className="stock-cell">
+        <div className="stock-cell-inner">
+          {diff !== null ? (
+            <span className={`stock-diff ${diff >= 0 ? 'positive' : 'negative'}`}>
+              {diff > 0 ? `+${diff}` : diff}
+            </span>
+          ) : (
+            <span className="stock-diff empty"> </span>
+          )}
+          <span className="stock-qty">{hasQuantity ? quantity : '—'}</span>
+          <input
+            type="number"
+            className="stock-shipment-input"
+            min="0"
+            value={shipmentValue}
+            onChange={(e) => handleShipmentChange(product.id, dateStr, e.target.value)}
+            onBlur={() => handleShipmentSave(product.id, dateStr)}
+          />
+        </div>
+      </td>
+    );
   };
 
   return (
@@ -154,44 +277,34 @@ function Dashboard() {
               {isAdmin ? 'У этого пользователя пока нет товаров' : 'Список товаров пуст'}
             </div>
           ) : (
-            <div className="products-table-wrapper">
-              <table className="products-table">
-                <thead>
-                  <tr>
-                    <th>Название</th>
-                    <th>Количество</th>
-                    <th>Обновить количество</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map((p) => (
-                    <tr key={p.id}>
-                      <td>{p.name}</td>
-                      <td className="quantity-cell">{p.quantity}</td>
-                      <td>
-                        <div className="actions-cell">
-                          <input
-                            type="number"
-                            className="qty-input"
-                            min="0"
-                            value={qtyInputs[p.id] ?? 0}
-                            onChange={(e) =>
-                              setQtyInputs({ ...qtyInputs, [p.id]: e.target.value })
-                            }
-                          />
-                          <button
-                            className="btn-sm btn-update"
-                            onClick={() => handleUpdateQuantity(p.id)}
-                          >
-                            Обновить
-                          </button>
-                        </div>
-                      </td>
+            <>
+              <div className="store-total">
+                На магазине: <strong>{storeTotal}</strong>
+              </div>
+              <div className="products-table-wrapper stock-grid-wrapper">
+                <table className="products-table stock-grid-table">
+                  <thead>
+                    <tr>
+                      <th className="date-col">Дата</th>
+                      {products.map((p) => (
+                        <th key={p.id}>{p.name}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {dates.map((date, dateIndex) => (
+                      <tr
+                        key={toISODate(date)}
+                        className={isMonday(date) ? 'monday-row' : ''}
+                      >
+                        <td className="date-col">{formatDateLabel(date)}</td>
+                        {products.map((product) => renderCell(product, dateIndex))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </main>

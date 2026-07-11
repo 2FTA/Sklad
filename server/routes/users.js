@@ -96,6 +96,18 @@ router.post('/', async (req, res) => {
       [login.trim(), hash, password, userRole]
     );
 
+    const newUserId = result.rows[0].id;
+    const existingProducts = await pool.query(
+      'SELECT DISTINCT name FROM products ORDER BY name'
+    );
+
+    for (const product of existingProducts.rows) {
+      await pool.query(
+        'INSERT INTO products (user_id, name, quantity) VALUES ($1, $2, 0)',
+        [newUserId, product.name]
+      );
+    }
+
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
