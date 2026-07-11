@@ -113,6 +113,12 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ productId, date, shipments }),
     }),
+
+  saveStocks: (userId, date, stocks) =>
+    request('/stocks', {
+      method: 'POST',
+      body: JSON.stringify({ userId, date, stocks }),
+    }),
 };
 
 export function saveAuth(token, user) {

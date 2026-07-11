@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import UserPage from './pages/UserPage';
 import UsersManagement from './pages/UsersManagement';
 import ProductsManagement from './pages/ProductsManagement';
 import AdminRoute from './components/AdminRoute';
@@ -11,6 +12,11 @@ function PrivateRoute({ children }) {
   return user ? children : <Navigate to="/login" replace />;
 }
 
+function Home() {
+  const user = getStoredUser();
+  return user?.role === 'admin' ? <Dashboard /> : <UserPage />;
+}
+
 function App() {
   return (
     <Routes>
@@ -19,7 +25,7 @@ function App() {
         path="/"
         element={
           <PrivateRoute>
-            <Dashboard />
+            <Home />
           </PrivateRoute>
         }
       />

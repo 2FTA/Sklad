@@ -1,0 +1,64 @@
+.user-page-content {
+  max-width: 480px;
+}
+
+.user-date-label {
+  background: #fff;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  color: #1e293b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.user-stock-form {
+  background: #fff;
+  border-radius: 10px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.user-product-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.user-product-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.user-product-item:last-child {
+  border-bottom: none;
+}
+
+.user-product-name {
+  font-size: 1rem;
+  color: #1e293b;
+  flex: 1;
+}
+
+.user-qty-input {
+  width: 100px;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 1rem;
+}
+
+.user-qty-input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.btn-save {
+  width: 100%;
+  margin-top: 1.25rem;
+}

@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { api, clearAuth, getStoredUser } from '../api';
+import { api, getStoredUser } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
 import {
   getLast15Days,
@@ -13,14 +12,10 @@ import {
 import './Dashboard.css';
 
 function Dashboard() {
-  const navigate = useNavigate();
   const currentUser = getStoredUser();
-  const isAdmin = currentUser?.role === 'admin';
 
   const [users, setUsers] = useState([]);
-  const [selectedUserId, setSelectedUserId] = useState(
-    isAdmin ? null : currentUser?.id
-  );
+  const [selectedUserId, setSelectedUserId] = useState(null);
   const [products, setProducts] = useState([]);
   const [stocks, setStocks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,14 +32,11 @@ function Dashboard() {
   }, [dates]);
 
   const selectedUser = users.find((u) => u.id === selectedUserId);
-  const displayName = isAdmin
-    ? selectedUser?.login || '—'
-    : currentUser?.login;
-
+  const displayName = selectedUser?.login || '—';
   const stockMap = useMemo(() => buildStockMap(stocks), [stocks]);
+  const todayStr = toISODate(dates[0]);
 
   const loadUsers = useCallback(async () => {
-    if (!isAdmin) return;
     try {
       const data = await api.getUsers();
       setUsers(data);
@@ -54,17 +46,16 @@ function Dashboard() {
     } catch (err) {
       setError(err.message);
     }
-  }, [isAdmin, selectedUserId]);
+  }, [selectedUserId]);
 
   const loadData = useCallback(async () => {
-    const userId = isAdmin ? selectedUserId : currentUser?.id;
-    if (!userId) return;
+    if (!selectedUserId) return;
 
     setLoading(true);
     try {
       const [productsData, stocksData] = await Promise.all([
-        api.getProducts(isAdmin ? userId : null),
-        api.getStocks(userId, dateRange.startDate, dateRange.endDate),
+        api.getProducts(selectedUserId),
+        api.getStocks(selectedUserId, dateRange.startDate, dateRange.endDate),
       ]);
 
       setProducts(productsData);
@@ -80,7 +71,7 @@ function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin, selectedUserId, currentUser?.id, dateRange]);
+  }, [selectedUserId, dateRange]);
 
   useEffect(() => {
     loadUsers();
@@ -93,11 +84,6 @@ function Dashboard() {
   const flash = (msg) => {
     setSuccess(msg);
     setTimeout(() => setSuccess(''), 3000);
-  };
-
-  const handleLogout = () => {
-    clearAuth();
-    navigate('/login');
   };
 
   const handleSelectUser = (id) => {
@@ -113,8 +99,6 @@ function Dashboard() {
     const cell = getCellData(productId, dateStr);
     return cell?.quantity ?? null;
   };
-
-  const todayStr = toISODate(dates[0]);
 
   const storeTotal = useMemo(() => {
     let total = 0;
@@ -144,14 +128,13 @@ function Dashboard() {
   };
 
   const handleShipmentSave = async (productId, dateStr) => {
-    const userId = isAdmin ? selectedUserId : currentUser?.id;
     const key = `${productId}-${dateStr}`;
     const value = shipmentInputs[key];
 
     if (value === undefined || value === '') return;
 
     try {
-      await api.updateShipment(userId, productId, dateStr, parseInt(value, 10) || 0);
+      await api.updateShipment(selectedUserId, productId, dateStr, parseInt(value, 10) || 0);
       flash('Отгрузка сохранена');
       await loadData();
     } catch (err) {
@@ -216,53 +199,37 @@ function Dashboard() {
 
   return (
     <div className="dashboard">
-      {isAdmin && (
-        <>
-          <div
-            className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`}
-            onClick={() => setSidebarOpen(false)}
-          />
-          <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-            <div className="sidebar-header">
-              <h2>👥 Пользователи</h2>
+      <div
+        className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div className="sidebar-header">
+          <h2>👥 Пользователи</h2>
+        </div>
+        <div className="user-list">
+          {users.map((u) => (
+            <div
+              key={u.id}
+              className={`user-item ${selectedUserId === u.id ? 'active' : ''}`}
+              onClick={() => handleSelectUser(u.id)}
+            >
+              <span className="user-item-name">
+                {u.login}
+                <span className="user-item-role">{u.role}</span>
+              </span>
             </div>
-            <div className="user-list">
-              {users.map((u) => (
-                <div
-                  key={u.id}
-                  className={`user-item ${selectedUserId === u.id ? 'active' : ''}`}
-                  onClick={() => handleSelectUser(u.id)}
-                >
-                  <span className="user-item-name">
-                    {u.login}
-                    <span className="user-item-role">{u.role}</span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          </aside>
-        </>
-      )}
+          ))}
+        </div>
+      </aside>
 
-      <main className={`main-content ${isAdmin ? 'with-sidebar' : ''}`}>
-        {isAdmin ? (
-          <AdminTopBar
-            title={`Склад пользователя: ${displayName}`}
-            onMenuClick={() => setSidebarOpen(true)}
-          />
-        ) : (
-          <div className="top-bar">
-            <h1>Мой склад</h1>
-            <div className="top-bar-actions">
-              <span className="user-badge">{currentUser?.login}</span>
-              <button className="btn-logout" onClick={handleLogout}>
-                Выйти
-              </button>
-            </div>
-          </div>
-        )}
+      <main className="main-content with-sidebar">
+        <AdminTopBar
+          title={`Склад пользователя: ${displayName}`}
+          onMenuClick={() => setSidebarOpen(true)}
+        />
 
-        <div className="content-area">
+        <div className="content-area admin-content-area">
           {error && (
             <div className="error-banner" onClick={() => setError('')}>
               {error}
@@ -273,36 +240,36 @@ function Dashboard() {
           {loading ? (
             <div className="loading">Загрузка...</div>
           ) : products.length === 0 ? (
-            <div className="empty-state">
-              {isAdmin ? 'У этого пользователя пока нет товаров' : 'Список товаров пуст'}
-            </div>
+            <div className="empty-state">У этого пользователя пока нет товаров</div>
           ) : (
             <>
               <div className="store-total">
                 На магазине: <strong>{storeTotal}</strong>
               </div>
-              <div className="products-table-wrapper stock-grid-wrapper">
-                <table className="products-table stock-grid-table">
-                  <thead>
-                    <tr>
-                      <th className="date-col">Дата</th>
-                      {products.map((p) => (
-                        <th key={p.id}>{p.name}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dates.map((date, dateIndex) => (
-                      <tr
-                        key={toISODate(date)}
-                        className={isMonday(date) ? 'monday-row' : ''}
-                      >
-                        <td className="date-col">{formatDateLabel(date)}</td>
-                        {products.map((product) => renderCell(product, dateIndex))}
+              <div className="stock-scroll-container">
+                <div className="products-table-wrapper stock-grid-wrapper">
+                  <table className="products-table stock-grid-table">
+                    <thead>
+                      <tr>
+                        <th className="date-col">Дата</th>
+                        {products.map((p) => (
+                          <th key={p.id}>{p.name}</th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {dates.map((date, dateIndex) => (
+                        <tr
+                          key={toISODate(date)}
+                          className={isMonday(date) ? 'monday-row' : ''}
+                        >
+                          <td className="date-col">{formatDateLabel(date)}</td>
+                          {products.map((product) => renderCell(product, dateIndex))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </>
           )}

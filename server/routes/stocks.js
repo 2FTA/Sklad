@@ -7,7 +7,16 @@ const router = express.Router();
 router.use(authMiddleware);
 
 function formatDate(d) {
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function todayISO() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return formatDate(d);
 }
 
 function defaultDateRange() {
@@ -17,6 +26,70 @@ function defaultDateRange() {
   start.setDate(start.getDate() - 14);
   return { startDate: formatDate(start), endDate: formatDate(end) };
 }
+
+router.post('/', async (req, res) => {
+  const targetUserId = req.body.userId
+    ? parseInt(req.body.userId, 10)
+    : req.user.id;
+  const date = req.body.date || todayISO();
+  const { stocks } = req.body;
+
+  if (!Array.isArray(stocks) || stocks.length === 0) {
+    return res.status(400).json({ error: 'Укажите список остатков' });
+  }
+
+  if (req.user.role !== 'admin' && req.user.id !== targetUserId) {
+    return res.status(403).json({ error: 'Доступ запрещён' });
+  }
+
+  try {
+    const user = await pool.query('SELECT id FROM users WHERE id = $1', [targetUserId]);
+    if (user.rows.length === 0) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    const saved = [];
+
+    for (const item of stocks) {
+      const productId = parseInt(item.productId, 10);
+      const quantity = parseInt(item.quantity, 10);
+
+      if (isNaN(productId) || isNaN(quantity) || quantity < 0) {
+        return res.status(400).json({ error: 'Некорректные данные остатков' });
+      }
+
+      const product = await pool.query(
+        'SELECT id FROM products WHERE id = $1 AND user_id = $2',
+        [productId, targetUserId]
+      );
+
+      if (product.rows.length === 0) {
+        return res.status(404).json({ error: `Товар ${productId} не найден` });
+      }
+
+      const result = await pool.query(
+        `INSERT INTO daily_stocks (product_id, user_id, date, quantity, shipments)
+         VALUES ($1, $2, $3::date, $4, 0)
+         ON CONFLICT (product_id, date)
+         DO UPDATE SET quantity = $4
+         RETURNING product_id AS "productId", date::text AS date, quantity, shipments`,
+        [productId, targetUserId, date, quantity]
+      );
+
+      await pool.query(
+        'UPDATE products SET quantity = $1 WHERE id = $2',
+        [quantity, productId]
+      );
+
+      saved.push(result.rows[0]);
+    }
+
+    res.json({ success: true, date, saved });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
 
 router.get('/:userId', async (req, res) => {
   const userId = parseInt(req.params.userId, 10);
