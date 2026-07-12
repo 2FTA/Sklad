@@ -18,6 +18,7 @@ function Dashboard() {
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [products, setProducts] = useState([]);
   const [stocks, setStocks] = useState([]);
+  const [storeTotal, setStoreTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -34,7 +35,6 @@ function Dashboard() {
   const selectedUser = users.find((u) => u.id === selectedUserId);
   const displayName = selectedUser?.login || '—';
   const stockMap = useMemo(() => buildStockMap(stocks), [stocks]);
-  const todayStr = toISODate(dates[0]);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -53,16 +53,17 @@ function Dashboard() {
 
     setLoading(true);
     try {
-      const [productsData, stocksData] = await Promise.all([
+      const [productsData, stocksResponse] = await Promise.all([
         api.getProducts(selectedUserId),
         api.getStocks(selectedUserId, dateRange.startDate, dateRange.endDate),
       ]);
 
       setProducts(productsData);
-      setStocks(stocksData);
+      setStocks(stocksResponse.stocks || []);
+      setStoreTotal(stocksResponse.storeTotal ?? 0);
 
       const inputs = {};
-      for (const s of stocksData) {
+      for (const s of stocksResponse.stocks || []) {
         inputs[`${s.productId}-${s.date}`] = s.shipments ?? 0;
       }
       setShipmentInputs(inputs);
@@ -99,26 +100,6 @@ function Dashboard() {
     const cell = getCellData(productId, dateStr);
     return cell?.quantity ?? null;
   };
-
-  const storeTotal = useMemo(() => {
-    let total = 0;
-    for (const product of products) {
-      const key = `${product.id}-${todayStr}`;
-      const cell = stockMap[key];
-      if (!cell) continue;
-
-      if (cell.quantity !== null && cell.quantity !== undefined) {
-        total += cell.quantity;
-      }
-
-      const shipment =
-        shipmentInputs[key] !== undefined
-          ? parseInt(shipmentInputs[key], 10) || 0
-          : cell.shipments ?? 0;
-      total += shipment;
-    }
-    return total;
-  }, [products, stockMap, shipmentInputs, todayStr]);
 
   const handleShipmentChange = (productId, dateStr, value) => {
     setShipmentInputs((prev) => ({

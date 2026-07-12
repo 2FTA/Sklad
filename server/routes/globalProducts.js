@@ -19,10 +19,12 @@ async function renumberAll(client) {
   `);
 }
 
+const VALID_WEIGHTS = ['1л', '0.3'];
+
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT gp.id, gp.name, gp.order_index,
+      SELECT gp.id, gp.name, gp.order_index, gp.weight,
              COALESCE(SUM(p.quantity), 0)::int AS total_quantity
       FROM global_products gp
       LEFT JOIN products p ON p.global_product_id = gp.id
@@ -66,7 +68,8 @@ router.post('/', async (req, res) => {
       const orderIndex = maxResult.rows[0].max_order + 1;
 
       const created = await client.query(
-        'INSERT INTO global_products (name, order_index) VALUES ($1, $2) RETURNING id, name, order_index',
+        `INSERT INTO global_products (name, order_index, weight)
+         VALUES ($1, $2, '1л') RETURNING id, name, order_index, weight`,
         [trimmedName, orderIndex]
       );
 
@@ -127,7 +130,7 @@ router.put('/:id/order', async (req, res) => {
       await renumberAll(client);
 
       const result = await client.query(
-        'SELECT id, name, order_index FROM global_products WHERE id = $1',
+        'SELECT id, name, order_index, weight FROM global_products WHERE id = $1',
         [id]
       );
 
@@ -148,37 +151,68 @@ router.put('/:id/order', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const { name } = req.body;
+  const { name, weight } = req.body;
 
-  if (!name || !name.trim()) {
-    return res.status(400).json({ error: 'Укажите название' });
+  if (name === undefined && weight === undefined) {
+    return res.status(400).json({ error: 'Укажите название или литраж' });
   }
 
-  const trimmedName = name.trim();
-
   try {
-    const duplicate = await pool.query(
-      'SELECT id FROM global_products WHERE LOWER(name) = LOWER($1) AND id != $2',
-      [trimmedName, id]
+    const existing = await pool.query(
+      'SELECT id, name FROM global_products WHERE id = $1',
+      [id]
     );
 
-    if (duplicate.rows.length > 0) {
-      return res.status(400).json({ error: 'Товар с таким названием уже существует' });
-    }
-
-    const result = await pool.query(
-      'UPDATE global_products SET name = $1 WHERE id = $2 RETURNING id, name, order_index',
-      [trimmedName, id]
-    );
-
-    if (result.rows.length === 0) {
+    if (existing.rows.length === 0) {
       return res.status(404).json({ error: 'Товар не найден' });
     }
 
-    await pool.query(
-      'UPDATE products SET name = $1 WHERE global_product_id = $2',
-      [trimmedName, id]
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (name !== undefined) {
+      if (!name || !name.trim()) {
+        return res.status(400).json({ error: 'Укажите название' });
+      }
+
+      const trimmedName = name.trim();
+      const duplicate = await pool.query(
+        'SELECT id FROM global_products WHERE LOWER(name) = LOWER($1) AND id != $2',
+        [trimmedName, id]
+      );
+
+      if (duplicate.rows.length > 0) {
+        return res.status(400).json({ error: 'Товар с таким названием уже существует' });
+      }
+
+      updates.push(`name = $${paramIndex++}`);
+      values.push(trimmedName);
+    }
+
+    if (weight !== undefined) {
+      if (!VALID_WEIGHTS.includes(weight)) {
+        return res.status(400).json({ error: 'Допустимые значения литража: 1л, 0.3' });
+      }
+
+      updates.push(`weight = $${paramIndex++}`);
+      values.push(weight);
+    }
+
+    values.push(id);
+
+    const result = await pool.query(
+      `UPDATE global_products SET ${updates.join(', ')}
+       WHERE id = $${paramIndex} RETURNING id, name, order_index, weight`,
+      values
     );
+
+    if (name !== undefined) {
+      await pool.query(
+        'UPDATE products SET name = $1 WHERE global_product_id = $2',
+        [result.rows[0].name, id]
+      );
+    }
 
     res.json(result.rows[0]);
   } catch (err) {

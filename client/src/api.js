@@ -78,6 +78,12 @@ export const api = {
       body: JSON.stringify({ name }),
     }),
 
+  updateGlobalProductWeight: (id, weight) =>
+    request(`/global-products/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ weight }),
+    }),
+
   deleteGlobalProduct: (id) =>
     request(`/global-products/${id}`, { method: 'DELETE' }),
 

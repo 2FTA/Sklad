@@ -108,7 +108,7 @@ router.get('/:userId', async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT p.id AS "productId", gp.name AS "productName",
+      `SELECT p.id AS "productId", gp.name AS "productName", gp.weight,
               ds.date::text AS date, ds.quantity, ds.shipments
        FROM products p
        JOIN global_products gp ON p.global_product_id = gp.id
@@ -124,12 +124,27 @@ router.get('/:userId', async (req, res) => {
       .map((row) => ({
         productId: row.productId,
         productName: row.productName,
+        weight: row.weight,
         date: row.date,
         quantity: row.quantity,
         shipments: row.shipments ?? 0,
       }));
 
-    res.json(stocks);
+    let storeTotal = 0;
+
+    if (req.user.role === 'admin') {
+      const totalResult = await pool.query(
+        `SELECT COALESCE(SUM(COALESCE(ds.quantity, 0) + COALESCE(ds.shipments, 0)), 0)::int AS store_total
+         FROM products p
+         JOIN global_products gp ON p.global_product_id = gp.id
+         LEFT JOIN daily_stocks ds ON ds.product_id = p.id AND ds.date = $2::date
+         WHERE p.user_id = $1 AND gp.weight = '1л'`,
+        [userId, endDate]
+      );
+      storeTotal = totalResult.rows[0].store_total;
+    }
+
+    res.json({ stocks, storeTotal });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка сервера' });

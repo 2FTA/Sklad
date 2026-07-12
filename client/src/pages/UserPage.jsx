@@ -22,7 +22,7 @@ function UserPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [productsData, stocksData] = await Promise.all([
+      const [productsData, stocksResponse] = await Promise.all([
         api.getProducts(),
         api.getStocks(currentUser.id, todayStr, todayStr),
       ]);
@@ -34,7 +34,7 @@ function UserPage() {
         inputs[p.id] = '';
       });
 
-      stocksData.forEach((s) => {
+      (stocksResponse.stocks || []).forEach((s) => {
         if (s.date === todayStr && s.quantity !== null && s.quantity !== undefined) {
           inputs[s.productId] = s.quantity;
         }

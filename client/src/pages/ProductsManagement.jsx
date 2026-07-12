@@ -103,6 +103,16 @@ function ProductsManagement() {
     }
   };
 
+  const handleWeightChange = async (productId, weight) => {
+    try {
+      await api.updateGlobalProductWeight(productId, weight);
+      flash('Литраж обновлён');
+      await loadProducts();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   return (
     <div className="page-layout">
       <AdminTopBar title="Управление товарами" />
@@ -125,6 +135,7 @@ function ProductsManagement() {
               <thead>
                 <tr>
                   <th>Название</th>
+                  <th>Литраж</th>
                   <th>Общее количество</th>
                   <th>Действия</th>
                 </tr>
@@ -155,6 +166,16 @@ function ProductsManagement() {
                       ) : (
                         product.name
                       )}
+                    </td>
+                    <td>
+                      <select
+                        className="weight-select"
+                        value={product.weight || '1л'}
+                        onChange={(e) => handleWeightChange(product.id, e.target.value)}
+                      >
+                        <option value="1л">1л</option>
+                        <option value="0.3">0.3</option>
+                      </select>
                     </td>
                     <td className="quantity-cell">{product.total_quantity}</td>
                     <td>
