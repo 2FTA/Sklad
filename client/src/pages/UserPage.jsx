@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, clearAuth, getStoredUser } from '../api';
-import { toISODate, formatDateFull, getToday } from '../utils/dates';
+import { toISODate, formatDateFull, getToday, getTomorrowISO } from '../utils/dates';
 import './Dashboard.css';
 import './UserPage.css';
 
@@ -68,7 +68,7 @@ function UserPage() {
         quantity: parseInt(quantities[p.id], 10) || 0,
       }));
 
-      await api.saveStocks(currentUser.id, todayStr, stocks);
+      await api.saveStocks(currentUser.id, getTomorrowISO(), stocks);
       setSuccess('Остатки сохранены');
       setTimeout(() => setSuccess(''), 3000);
       await loadData();

@@ -53,6 +53,11 @@ export function getToday() {
   return d;
 }
 
+export function getTomorrowISO() {
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  return toISODate(tomorrow);
+}
+
 export function buildStockMap(stocks) {
   const map = {};
   for (const s of stocks) {
