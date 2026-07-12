@@ -12,6 +12,7 @@ function ProductsManagement() {
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
   const [newProductName, setNewProductName] = useState('');
+  const [orderInputs, setOrderInputs] = useState({});
 
   const flash = (msg) => {
     setSuccess(msg);
@@ -21,8 +22,13 @@ function ProductsManagement() {
   const loadProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await api.getAggregatedProducts();
+      const data = await api.getGlobalProducts();
       setProducts(data);
+      const inputs = {};
+      data.forEach((p) => {
+        inputs[p.id] = p.order_index;
+      });
+      setOrderInputs(inputs);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -41,7 +47,7 @@ function ProductsManagement() {
     }
 
     try {
-      await api.updateGlobalProduct(productId, editName);
+      await api.updateGlobalProductName(productId, editName);
       setEditingId(null);
       flash('Название изменено у всех пользователей');
       await loadProducts();
@@ -68,6 +74,29 @@ function ProductsManagement() {
       await api.createGlobalProduct(newProductName);
       setNewProductName('');
       flash('Товар добавлен всем пользователям');
+      await loadProducts();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleOrderChange = (productId, value) => {
+    setOrderInputs({ ...orderInputs, [productId]: value });
+  };
+
+  const handleOrderSave = async (productId) => {
+    const value = orderInputs[productId];
+    if (value === undefined || value === '') return;
+
+    const orderIndex = parseInt(value, 10);
+    if (isNaN(orderIndex) || orderIndex < 1) {
+      setError('Порядок должен быть числом больше 0');
+      return;
+    }
+
+    try {
+      await api.updateGlobalProductOrder(productId, orderIndex);
+      flash('Порядок обновлён');
       await loadProducts();
     } catch (err) {
       setError(err.message);
@@ -130,6 +159,15 @@ function ProductsManagement() {
                     <td className="quantity-cell">{product.total_quantity}</td>
                     <td>
                       <div className="actions-cell">
+                        <input
+                          type="number"
+                          className="order-input"
+                          min="1"
+                          title="Порядок"
+                          value={orderInputs[product.id] ?? product.order_index}
+                          onChange={(e) => handleOrderChange(product.id, e.target.value)}
+                          onBlur={() => handleOrderSave(product.id)}
+                        />
                         {editingId !== product.id && (
                           <button
                             className="btn-sm btn-rename"

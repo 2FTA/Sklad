@@ -51,6 +51,20 @@
   min-width: 140px;
 }
 
+.order-input {
+  width: 56px;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.order-input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
 .btn-show {
   background: #6366f1;
   color: #fff;

@@ -108,13 +108,14 @@ router.get('/:userId', async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT p.id AS "productId", p.name AS "productName",
+      `SELECT p.id AS "productId", gp.name AS "productName",
               ds.date::text AS date, ds.quantity, ds.shipments
        FROM products p
+       JOIN global_products gp ON p.global_product_id = gp.id
        LEFT JOIN daily_stocks ds ON ds.product_id = p.id
          AND ds.date >= $2::date AND ds.date <= $3::date
        WHERE p.user_id = $1
-       ORDER BY p.name, ds.date DESC`,
+       ORDER BY gp.order_index ASC, ds.date DESC`,
       [userId, startDate, endDate]
     );
 

@@ -97,16 +97,12 @@ router.post('/', async (req, res) => {
     );
 
     const newUserId = result.rows[0].id;
-    const existingProducts = await pool.query(
-      'SELECT DISTINCT name FROM products ORDER BY name'
-    );
 
-    for (const product of existingProducts.rows) {
-      await pool.query(
-        'INSERT INTO products (user_id, name, quantity) VALUES ($1, $2, 0)',
-        [newUserId, product.name]
-      );
-    }
+    await pool.query(
+      `INSERT INTO products (user_id, global_product_id, name, quantity)
+       SELECT $1, gp.id, gp.name, 0 FROM global_products gp`,
+      [newUserId]
+    );
 
     res.status(201).json(result.rows[0]);
   } catch (err) {

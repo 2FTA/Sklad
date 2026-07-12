@@ -9,10 +9,12 @@ router.use(authMiddleware);
 router.get('/aggregated', adminOnly, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT MIN(p.id) AS id, p.name, SUM(p.quantity)::int AS total_quantity
-      FROM products p
-      GROUP BY p.name
-      ORDER BY p.name
+      SELECT gp.id, gp.name, gp.order_index,
+             COALESCE(SUM(p.quantity), 0)::int AS total_quantity
+      FROM global_products gp
+      LEFT JOIN products p ON p.global_product_id = gp.id
+      GROUP BY gp.id
+      ORDER BY gp.order_index ASC
     `);
     res.json(result.rows);
   } catch (err) {
@@ -145,7 +147,11 @@ router.get('/', async (req, res) => {
     }
 
     const result = await pool.query(
-      'SELECT id, name, quantity FROM products WHERE user_id = $1 ORDER BY name',
+      `SELECT p.id, gp.name AS name, p.quantity, gp.order_index
+       FROM products p
+       JOIN global_products gp ON p.global_product_id = gp.id
+       WHERE p.user_id = $1
+       ORDER BY gp.order_index ASC`,
       [userId]
     );
 

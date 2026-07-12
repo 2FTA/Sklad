@@ -58,20 +58,28 @@ export const api = {
 
   getAggregatedProducts: () => request('/products/aggregated'),
 
-  createGlobalProduct: (name, quantity = 0) =>
-    request('/products/global', {
+  getGlobalProducts: () => request('/global-products'),
+
+  createGlobalProduct: (name) =>
+    request('/global-products', {
       method: 'POST',
-      body: JSON.stringify({ name, quantity }),
+      body: JSON.stringify({ name }),
     }),
 
-  updateGlobalProduct: (id, name) =>
-    request(`/products/global/${id}`, {
+  updateGlobalProductOrder: (id, orderIndex) =>
+    request(`/global-products/${id}/order`, {
+      method: 'PUT',
+      body: JSON.stringify({ orderIndex }),
+    }),
+
+  updateGlobalProductName: (id, name) =>
+    request(`/global-products/${id}`, {
       method: 'PUT',
       body: JSON.stringify({ name }),
     }),
 
   deleteGlobalProduct: (id) =>
-    request(`/products/global/${id}`, { method: 'DELETE' }),
+    request(`/global-products/${id}`, { method: 'DELETE' }),
 
   createProductForAllUsers: (name, quantity = 0) =>
     request('/products/all-users', {
