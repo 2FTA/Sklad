@@ -96,6 +96,7 @@ router.get('/:userId', async (req, res) => {
   const defaults = defaultDateRange();
   const startDate = req.query.startDate || defaults.startDate;
   const endDate = req.query.endDate || defaults.endDate;
+  const totalDate = req.query.totalDate || todayISO();
 
   if (req.user.role !== 'admin' && req.user.id !== userId) {
     return res.status(403).json({ error: 'Доступ запрещён' });
@@ -139,7 +140,7 @@ router.get('/:userId', async (req, res) => {
          JOIN global_products gp ON p.global_product_id = gp.id
          LEFT JOIN daily_stocks ds ON ds.product_id = p.id AND ds.date = $2::date
          WHERE p.user_id = $1 AND gp.weight = '1л'`,
-        [userId, endDate]
+        [userId, totalDate]
       );
       storeTotal = totalResult.rows[0].store_total;
     }

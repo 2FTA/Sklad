@@ -29,7 +29,8 @@ function Dashboard() {
   const dateRange = useMemo(() => {
     const startDate = toISODate(dates[dates.length - 1]);
     const endDate = toISODate(dates[0]);
-    return { startDate, endDate };
+    const totalDate = toISODate(dates[1]);
+    return { startDate, endDate, totalDate };
   }, [dates]);
 
   const selectedUser = users.find((u) => u.id === selectedUserId);
@@ -55,7 +56,12 @@ function Dashboard() {
     try {
       const [productsData, stocksResponse] = await Promise.all([
         api.getProducts(selectedUserId),
-        api.getStocks(selectedUserId, dateRange.startDate, dateRange.endDate),
+        api.getStocks(
+          selectedUserId,
+          dateRange.startDate,
+          dateRange.endDate,
+          dateRange.totalDate
+        ),
       ]);
 
       setProducts(productsData);

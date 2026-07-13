@@ -114,10 +114,11 @@ export const api = {
   deleteProduct: (id) =>
     request(`/products/${id}`, { method: 'DELETE' }),
 
-  getStocks: (userId, startDate, endDate) => {
+  getStocks: (userId, startDate, endDate, totalDate) => {
     const params = new URLSearchParams();
     if (startDate) params.set('startDate', startDate);
     if (endDate) params.set('endDate', endDate);
+    if (totalDate) params.set('totalDate', totalDate);
     const query = params.toString();
     return request(`/stocks/${userId}${query ? `?${query}` : ''}`);
   },
