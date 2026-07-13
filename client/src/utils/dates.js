@@ -15,6 +15,20 @@ export function toISODate(date) {
   return `${y}-${m}-${d}`;
 }
 
+export function getAdminStockDays() {
+  const dates = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i < 15; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + 1 - i);
+    dates.push(d);
+  }
+
+  return dates;
+}
+
 export function getLast15Days() {
   const dates = [];
   const today = new Date();

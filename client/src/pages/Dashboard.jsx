@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api, getStoredUser } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
 import {
-  getLast15Days,
+  getAdminStockDays,
   formatDateLabel,
   isMonday,
   toISODate,
@@ -25,7 +25,7 @@ function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [shipmentInputs, setShipmentInputs] = useState({});
 
-  const dates = useMemo(() => getLast15Days(), []);
+  const dates = useMemo(() => getAdminStockDays(), []);
   const dateRange = useMemo(() => {
     const startDate = toISODate(dates[dates.length - 1]);
     const endDate = toISODate(dates[0]);
