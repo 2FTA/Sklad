@@ -441,11 +441,29 @@
   font-size: 1.1rem;
   color: #1e293b;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+}
+
+.store-stat-divider {
+  width: 1px;
+  height: 1.25rem;
+  background: #e2e8f0;
 }
 
 .store-total strong {
   color: #2563eb;
   font-size: 1.25rem;
+}
+
+.free-space-ok {
+  color: #16a34a !important;
+}
+
+.free-space-over {
+  color: #dc2626 !important;
 }
 
 .stock-scroll-container {

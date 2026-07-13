@@ -11,6 +11,10 @@ async function ensureUsersSchema(pool) {
   await pool.query(`
     ALTER TABLE users ADD COLUMN IF NOT EXISTS password_plain VARCHAR(255)
   `);
+
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS capacity INTEGER DEFAULT 1000
+  `);
 }
 
 async function ensureDailyStocksSchema(pool) {

@@ -78,6 +78,20 @@
   border-color: #2563eb;
 }
 
+.capacity-input {
+  width: 90px;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.capacity-input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
 .btn-show {
   background: #6366f1;
   color: #fff;

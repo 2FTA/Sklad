@@ -35,6 +35,8 @@ function Dashboard() {
 
   const selectedUser = users.find((u) => u.id === selectedUserId);
   const displayName = selectedUser?.login || '—';
+  const storeCapacity = selectedUser?.role === 'user' ? (selectedUser.capacity ?? 1000) : null;
+  const freeSpace = storeCapacity !== null ? storeCapacity - storeTotal : null;
   const stockMap = useMemo(() => buildStockMap(stocks), [stocks]);
 
   const loadUsers = useCallback(async () => {
@@ -231,7 +233,24 @@ function Dashboard() {
           ) : (
             <>
               <div className="store-total">
-                На магазине: <strong>{storeTotal}</strong>
+                <span>
+                  На магазине: <strong>{storeTotal}</strong>
+                </span>
+                {storeCapacity !== null && (
+                  <>
+                    <span className="store-stat-divider" />
+                    <span>
+                      Вместимость: <strong>{storeCapacity}</strong>
+                    </span>
+                    <span className="store-stat-divider" />
+                    <span>
+                      Свободное место:{' '}
+                      <strong className={freeSpace >= 0 ? 'free-space-ok' : 'free-space-over'}>
+                        {freeSpace}
+                      </strong>
+                    </span>
+                  </>
+                )}
               </div>
               <div className="stock-scroll-container">
                 <div className="products-table-wrapper stock-grid-wrapper">

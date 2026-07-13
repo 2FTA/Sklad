@@ -10,7 +10,7 @@ router.use(authMiddleware, adminOnly);
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, login, role FROM users ORDER BY login'
+      'SELECT id, login, role, capacity FROM users ORDER BY login'
     );
     res.json(result.rows);
   } catch (err) {
@@ -39,6 +39,42 @@ router.get('/:id/password', async (req, res) => {
     }
 
     res.json({ login, password: password_plain });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+router.put('/:id/capacity', async (req, res) => {
+  const userId = parseInt(req.params.id, 10);
+  const { capacity } = req.body;
+
+  if (capacity === undefined || capacity === null || isNaN(parseInt(capacity, 10))) {
+    return res.status(400).json({ error: 'Укажите корректную вместимость' });
+  }
+
+  const capacityValue = parseInt(capacity, 10);
+  if (capacityValue < 0) {
+    return res.status(400).json({ error: 'Вместимость не может быть отрицательной' });
+  }
+
+  try {
+    const user = await pool.query('SELECT id, role FROM users WHERE id = $1', [userId]);
+
+    if (user.rows.length === 0) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    if (user.rows[0].role === 'admin') {
+      return res.status(403).json({ error: 'Для администратора вместимость не используется' });
+    }
+
+    const result = await pool.query(
+      'UPDATE users SET capacity = $1 WHERE id = $2 RETURNING id, login, role, capacity',
+      [capacityValue, userId]
+    );
+
+    res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка сервера' });
@@ -92,8 +128,9 @@ router.post('/', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      'INSERT INTO users (login, password_hash, password_plain, role) VALUES ($1, $2, $3, $4) RETURNING id, login, role',
-      [login.trim(), hash, password, userRole]
+      `INSERT INTO users (login, password_hash, password_plain, role, capacity)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id, login, role, capacity`,
+      [login.trim(), hash, password, userRole, 1000]
     );
 
     const newUserId = result.rows[0].id;

@@ -13,6 +13,7 @@ function UsersManagement() {
   const [editingPassword, setEditingPassword] = useState(null);
   const [newPassword, setNewPassword] = useState('');
   const [newUser, setNewUser] = useState({ login: '', password: '', role: 'user' });
+  const [capacityInputs, setCapacityInputs] = useState({});
 
   const flash = (msg) => {
     setSuccess(msg);
@@ -24,6 +25,13 @@ function UsersManagement() {
     try {
       const data = await api.getUsers();
       setUsers(data);
+      const inputs = {};
+      data.forEach((u) => {
+        if (u.role === 'user') {
+          inputs[u.id] = u.capacity ?? 1000;
+        }
+      });
+      setCapacityInputs(inputs);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -94,6 +102,25 @@ function UsersManagement() {
     }
   };
 
+  const handleCapacitySave = async (userId) => {
+    const value = capacityInputs[userId];
+    if (value === undefined || value === '') return;
+
+    const capacity = parseInt(value, 10);
+    if (isNaN(capacity) || capacity < 0) {
+      setError('Вместимость должна быть числом ≥ 0');
+      return;
+    }
+
+    try {
+      await api.updateUserCapacity(userId, capacity);
+      flash('Вместимость обновлена');
+      await loadUsers();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   return (
     <div className="page-layout">
       <AdminTopBar title="Управление пользователями" />
@@ -115,6 +142,7 @@ function UsersManagement() {
                 <tr>
                   <th>Логин</th>
                   <th>Роль</th>
+                  <th>Вместимость</th>
                   <th>Действия</th>
                 </tr>
               </thead>
@@ -123,6 +151,22 @@ function UsersManagement() {
                   <tr key={user.id}>
                     <td>{user.login}</td>
                     <td>{user.role}</td>
+                    <td>
+                      {user.role === 'user' ? (
+                        <input
+                          type="number"
+                          className="capacity-input"
+                          min="0"
+                          value={capacityInputs[user.id] ?? user.capacity ?? 1000}
+                          onChange={(e) =>
+                            setCapacityInputs({ ...capacityInputs, [user.id]: e.target.value })
+                          }
+                          onBlur={() => handleCapacitySave(user.id)}
+                        />
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                     <td>
                       <div className="actions-cell">
                         <button

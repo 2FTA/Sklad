@@ -51,6 +51,12 @@ export const api = {
       body: JSON.stringify({ password }),
     }),
 
+  updateUserCapacity: (id, capacity) =>
+    request(`/users/${id}/capacity`, {
+      method: 'PUT',
+      body: JSON.stringify({ capacity }),
+    }),
+
   getProducts: (userId) =>
     request(userId ? `/products?userId=${userId}` : '/products'),
 
