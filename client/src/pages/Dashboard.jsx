@@ -7,7 +7,7 @@ import {
   isMonday,
   toISODate,
   buildStockMap,
-  getStockDiff,
+  getSales,
 } from '../utils/dates';
 import './Dashboard.css';
 
@@ -104,9 +104,13 @@ function Dashboard() {
     return stockMap[`${productId}-${dateStr}`] || null;
   };
 
-  const getQuantity = (productId, dateStr) => {
+  const getShipments = (productId, dateStr) => {
+    const key = `${productId}-${dateStr}`;
     const cell = getCellData(productId, dateStr);
-    return cell?.quantity ?? null;
+    if (shipmentInputs[key] !== undefined) {
+      return parseInt(shipmentInputs[key], 10) || 0;
+    }
+    return cell?.shipments ?? 0;
   };
 
   const handleShipmentChange = (productId, dateStr, value) => {
@@ -146,15 +150,17 @@ function Dashboard() {
     const quantity = cell.quantity;
     const hasQuantity = quantity !== null && quantity !== undefined;
 
-    const prevQuantity =
-      dateIndex < dates.length - 1
-        ? getQuantity(product.id, toISODate(dates[dateIndex + 1]))
-        : null;
-
-    const diff =
-      dateIndex < dates.length - 1
-        ? getStockDiff(hasQuantity ? quantity : null, prevQuantity)
-        : null;
+    let sales = null;
+    if (dateIndex < dates.length - 1) {
+      const prevDateStr = toISODate(dates[dateIndex + 1]);
+      const prevQuantity = getCellData(product.id, prevDateStr)?.quantity ?? null;
+      const prevShipments = getShipments(product.id, prevDateStr);
+      sales = getSales(
+        prevQuantity,
+        prevShipments,
+        hasQuantity ? quantity : null
+      );
+    }
 
     const shipmentKey = `${product.id}-${dateStr}`;
     const shipmentValue =
@@ -165,9 +171,9 @@ function Dashboard() {
     return (
       <td key={product.id} className="stock-cell">
         <div className="stock-cell-inner">
-          {diff !== null ? (
-            <span className={`stock-diff ${diff >= 0 ? 'positive' : 'negative'}`}>
-              {diff > 0 ? `+${diff}` : diff}
+          {sales !== null ? (
+            <span className={`stock-diff ${sales >= 0 ? 'positive' : 'negative'}`}>
+              {sales > 0 ? `+${sales}` : sales}
             </span>
           ) : (
             <span className="stock-diff empty"> </span>

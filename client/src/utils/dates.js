@@ -83,8 +83,8 @@ export function buildStockMap(stocks) {
   return map;
 }
 
-export function getStockDiff(currentQty, prevQty) {
-  if (currentQty === null || currentQty === undefined) return null;
+export function getSales(prevQty, prevShipments, currentQty) {
   if (prevQty === null || prevQty === undefined) return null;
-  return currentQty - prevQty;
+  if (currentQty === null || currentQty === undefined) return null;
+  return prevQty + (prevShipments ?? 0) - currentQty;
 }
