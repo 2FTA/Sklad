@@ -1,7 +1,16 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
-import { getToday, formatDateFull, toISODate } from '../utils/dates';
+import {
+  getAdminStockDays,
+  getToday,
+  formatDateFull,
+  formatDateLabel,
+  isMonday,
+  toISODate,
+  buildStockMap,
+  getSales,
+} from '../utils/dates';
 import './Dashboard.css';
 import './AdminPages.css';
 
@@ -9,29 +18,55 @@ function Dashboard() {
   const today = useMemo(() => getToday(), []);
   const todayStr = toISODate(today);
   const todayLabel = formatDateFull(today);
+  const dates = useMemo(() => getAdminStockDays(), []);
+  const dateRange = useMemo(() => {
+    const startDate = toISODate(dates[dates.length - 1]);
+    const endDate = toISODate(dates[0]);
+    const totalDate = toISODate(dates[1]);
+    return { startDate, endDate, totalDate };
+  }, [dates]);
 
+  const [activeView, setActiveView] = useState('summary');
   const [shopUsers, setShopUsers] = useState([]);
-  const [products, setProducts] = useState([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const [globalProducts, setGlobalProducts] = useState([]);
   const [shipmentMap, setShipmentMap] = useState({});
   const [warehouseInputs, setWarehouseInputs] = useState({});
   const [motorInputs, setMotorInputs] = useState({});
-  const [warehouseCommitted, setWarehouseCommitted] = useState({});
-  const [motorCommitted, setMotorCommitted] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
-  const loadData = useCallback(async () => {
+  const [userProducts, setUserProducts] = useState([]);
+  const [stocks, setStocks] = useState([]);
+  const [storeTotal, setStoreTotal] = useState(0);
+  const [shipmentInputs, setShipmentInputs] = useState({});
+
+  const selectedUser = shopUsers.find((u) => u.id === activeView);
+  const storeCapacity =
+    selectedUser?.role === 'user' ? (selectedUser.capacity ?? 1000) : null;
+  const freeSpace = storeCapacity !== null ? storeCapacity - storeTotal : null;
+  const stockMap = useMemo(() => buildStockMap(stocks), [stocks]);
+
+  const loadUsers = useCallback(async () => {
+    try {
+      const data = await api.getUsers();
+      setShopUsers(data.filter((u) => u.role === 'user'));
+    } catch (err) {
+      setError(err.message);
+    }
+  }, []);
+
+  const loadSummaryData = useCallback(async () => {
     setLoading(true);
     try {
-      const [usersData, productsData, shipmentsData] = await Promise.all([
-        api.getUsers(),
+      const [productsData, shipmentsData] = await Promise.all([
         api.getGlobalProducts(),
         api.getTodayShipments(todayStr),
       ]);
 
-      const shops = usersData.filter((u) => u.role === 'user');
-      setShopUsers(shops);
-      setProducts(productsData);
+      setGlobalProducts(productsData);
 
       const map = {};
       for (const row of shipmentsData.shipments || []) {
@@ -45,17 +80,68 @@ function Dashboard() {
     }
   }, [todayStr]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const loadUserData = useCallback(async () => {
+    if (typeof activeView !== 'number') return;
 
-  const getShipment = (userId, globalProductId) => {
+    setLoading(true);
+    try {
+      const [productsData, stocksResponse] = await Promise.all([
+        api.getProducts(activeView),
+        api.getStocks(
+          activeView,
+          dateRange.startDate,
+          dateRange.endDate,
+          dateRange.totalDate
+        ),
+      ]);
+
+      setUserProducts(productsData);
+      setStocks(stocksResponse.stocks || []);
+      setStoreTotal(stocksResponse.storeTotal ?? 0);
+
+      const inputs = {};
+      for (const s of stocksResponse.stocks || []) {
+        inputs[`${s.productId}-${s.date}`] = s.shipments ?? 0;
+      }
+      setShipmentInputs(inputs);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeView, dateRange]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  useEffect(() => {
+    if (activeView === 'summary') {
+      loadSummaryData();
+    } else {
+      loadUserData();
+    }
+  }, [activeView, loadSummaryData, loadUserData]);
+
+  const handleSelectView = (view) => {
+    setActiveView(view);
+    setSidebarOpen(false);
+    setError('');
+    setSuccess('');
+  };
+
+  const flash = (msg) => {
+    setSuccess(msg);
+    setTimeout(() => setSuccess(''), 3000);
+  };
+
+  const getSummaryShipment = (userId, globalProductId) => {
     return shipmentMap[`${userId}-${globalProductId}`] ?? 0;
   };
 
   const getRowTotal = (globalProductId) => {
     return shopUsers.reduce(
-      (sum, user) => sum + getShipment(user.id, globalProductId),
+      (sum, user) => sum + getSummaryShipment(user.id, globalProductId),
       0
     );
   };
@@ -68,8 +154,8 @@ function Dashboard() {
 
   const getRowCalcs = (globalProductId) => {
     const total = getRowTotal(globalProductId);
-    const warehouse = warehouseCommitted[globalProductId] ?? null;
-    const motor = motorCommitted[globalProductId] ?? null;
+    const warehouse = parseInput(warehouseInputs[globalProductId]);
+    const motor = parseInput(motorInputs[globalProductId]);
     const afterShip = warehouse !== null ? warehouse - total : null;
     const overall =
       afterShip !== null && motor !== null ? afterShip + motor : null;
@@ -77,110 +163,300 @@ function Dashboard() {
     return { total, afterShip, overall };
   };
 
-  const commitWarehouse = (productId) => {
-    setWarehouseCommitted((prev) => ({
+  const getCellData = (productId, dateStr) => {
+    return stockMap[`${productId}-${dateStr}`] || null;
+  };
+
+  const getShipments = (productId, dateStr) => {
+    const key = `${productId}-${dateStr}`;
+    const cell = getCellData(productId, dateStr);
+    if (shipmentInputs[key] !== undefined) {
+      return parseInt(shipmentInputs[key], 10) || 0;
+    }
+    return cell?.shipments ?? 0;
+  };
+
+  const handleShipmentChange = (productId, dateStr, value) => {
+    setShipmentInputs((prev) => ({
       ...prev,
-      [productId]: parseInput(warehouseInputs[productId]),
+      [`${productId}-${dateStr}`]: value,
     }));
   };
 
-  const commitMotor = (productId) => {
-    setMotorCommitted((prev) => ({
-      ...prev,
-      [productId]: parseInput(motorInputs[productId]),
-    }));
+  const handleShipmentSave = async (productId, dateStr) => {
+    const key = `${productId}-${dateStr}`;
+    const value = shipmentInputs[key];
+
+    if (value === undefined || value === '') return;
+
+    try {
+      await api.updateShipment(
+        activeView,
+        productId,
+        dateStr,
+        parseInt(value, 10) || 0
+      );
+      flash('Отгрузка сохранена');
+      await loadUserData();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const renderUserCell = (product, dateIndex) => {
+    const dateStr = toISODate(dates[dateIndex]);
+    const cell = getCellData(product.id, dateStr);
+
+    if (cell === null) {
+      return (
+        <td key={product.id} className="stock-cell empty-cell">
+          —
+        </td>
+      );
+    }
+
+    const quantity = cell.quantity;
+    const hasQuantity = quantity !== null && quantity !== undefined;
+
+    let sales = null;
+    if (dateIndex < dates.length - 1) {
+      const prevDateStr = toISODate(dates[dateIndex + 1]);
+      const prevQuantity = getCellData(product.id, prevDateStr)?.quantity ?? null;
+      const prevShipments = getShipments(product.id, prevDateStr);
+      sales = getSales(
+        prevQuantity,
+        prevShipments,
+        hasQuantity ? quantity : null
+      );
+    }
+
+    const shipmentKey = `${product.id}-${dateStr}`;
+    const shipmentValue =
+      shipmentInputs[shipmentKey] !== undefined
+        ? shipmentInputs[shipmentKey]
+        : cell.shipments ?? '';
+
+    return (
+      <td key={product.id} className="stock-cell">
+        <div className="stock-cell-inner">
+          {sales !== null ? (
+            <span className={`stock-diff ${sales >= 0 ? 'positive' : 'negative'}`}>
+              {sales > 0 ? `+${sales}` : sales}
+            </span>
+          ) : (
+            <span className="stock-diff empty"> </span>
+          )}
+          <span className="stock-qty">{hasQuantity ? quantity : '—'}</span>
+          <input
+            type="number"
+            className="stock-shipment-input"
+            min="0"
+            value={shipmentValue}
+            onChange={(e) =>
+              handleShipmentChange(product.id, dateStr, e.target.value)
+            }
+            onBlur={() => handleShipmentSave(product.id, dateStr)}
+          />
+        </div>
+      </td>
+    );
+  };
+
+  const topBarTitle =
+    activeView === 'summary'
+      ? todayLabel
+      : `Склад пользователя: ${selectedUser?.login || '—'}`;
+
+  const renderSummaryView = () => {
+    if (globalProducts.length === 0) {
+      return <div className="empty-state">Товаров пока нет</div>;
+    }
+    if (shopUsers.length === 0) {
+      return <div className="empty-state">Нет магазинов для отображения</div>;
+    }
+
+    return (
+      <div className="stock-scroll-container">
+        <div className="products-table-wrapper summary-table-wrapper">
+          <table className="products-table summary-table">
+            <thead>
+              <tr>
+                <th className="product-name-col">Товар</th>
+                {shopUsers.map((user) => (
+                  <th key={user.id}>{user.login}</th>
+                ))}
+                <th>итого</th>
+                <th>склад</th>
+                <th>склад после отг</th>
+                <th>склад Моторная</th>
+                <th>общий остаток</th>
+              </tr>
+            </thead>
+            <tbody>
+              {globalProducts.map((product) => {
+                const { total, afterShip, overall } = getRowCalcs(product.id);
+
+                return (
+                  <tr key={product.id}>
+                    <td className="product-name-col">{product.name}</td>
+                    {shopUsers.map((user) => (
+                      <td key={user.id} className="summary-num">
+                        {getSummaryShipment(user.id, product.id)}
+                      </td>
+                    ))}
+                    <td className="summary-num summary-total">{total}</td>
+                    <td>
+                      <input
+                        type="number"
+                        className="summary-input"
+                        value={warehouseInputs[product.id] ?? ''}
+                        onChange={(e) =>
+                          setWarehouseInputs({
+                            ...warehouseInputs,
+                            [product.id]: e.target.value,
+                          })
+                        }
+                      />
+                    </td>
+                    <td className="summary-num">
+                      {afterShip !== null ? afterShip : '—'}
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        className="summary-input"
+                        value={motorInputs[product.id] ?? ''}
+                        onChange={(e) =>
+                          setMotorInputs({
+                            ...motorInputs,
+                            [product.id]: e.target.value,
+                          })
+                        }
+                      />
+                    </td>
+                    <td className="summary-num summary-overall">
+                      {overall !== null ? overall : '—'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const renderUserView = () => {
+    if (userProducts.length === 0) {
+      return <div className="empty-state">У этого пользователя пока нет товаров</div>;
+    }
+
+    return (
+      <>
+        <div className="store-total">
+          <span>
+            На магазине: <strong>{storeTotal}</strong>
+          </span>
+          {storeCapacity !== null && (
+            <>
+              <span className="store-stat-divider" />
+              <span>
+                Вместимость: <strong>{storeCapacity}</strong>
+              </span>
+              <span className="store-stat-divider" />
+              <span>
+                Свободное место:{' '}
+                <strong
+                  className={freeSpace >= 0 ? 'free-space-ok' : 'free-space-over'}
+                >
+                  {freeSpace}
+                </strong>
+              </span>
+            </>
+          )}
+        </div>
+        <div className="stock-scroll-container">
+          <div className="products-table-wrapper stock-grid-wrapper">
+            <table className="products-table stock-grid-table">
+              <thead>
+                <tr>
+                  <th className="date-col">Дата</th>
+                  {userProducts.map((p) => (
+                    <th key={p.id}>{p.name}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {dates.map((date, dateIndex) => (
+                  <tr
+                    key={toISODate(date)}
+                    className={isMonday(date) ? 'monday-row' : ''}
+                  >
+                    <td className="date-col">{formatDateLabel(date)}</td>
+                    {userProducts.map((product) => renderUserCell(product, dateIndex))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </>
+    );
   };
 
   return (
-    <div className="page-layout">
-      <AdminTopBar title={todayLabel} />
-
-      <div className="content-area admin-content-area">
-        {error && (
-          <div className="error-banner" onClick={() => setError('')}>
-            {error}
+    <div className="dashboard">
+      <div
+        className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div className="sidebar-header">
+          <h2>Магазины</h2>
+        </div>
+        <div className="user-list">
+          <div
+            className={`user-item ${activeView === 'summary' ? 'active' : ''}`}
+            onClick={() => handleSelectView('summary')}
+          >
+            <span className="user-item-name">Сводка</span>
           </div>
-        )}
-
-        {loading ? (
-          <div className="loading">Загрузка...</div>
-        ) : products.length === 0 ? (
-          <div className="empty-state">Товаров пока нет</div>
-        ) : shopUsers.length === 0 ? (
-          <div className="empty-state">Нет магазинов для отображения</div>
-        ) : (
-          <div className="stock-scroll-container">
-            <div className="products-table-wrapper summary-table-wrapper">
-              <table className="products-table summary-table">
-                <thead>
-                  <tr>
-                    <th className="product-name-col">Товар</th>
-                    {shopUsers.map((user) => (
-                      <th key={user.id}>{user.login}</th>
-                    ))}
-                    <th>итого</th>
-                    <th>склад</th>
-                    <th>склад после отг</th>
-                    <th>склад Моторная</th>
-                    <th>общий остаток</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map((product) => {
-                    const { total, afterShip, overall } = getRowCalcs(product.id);
-
-                    return (
-                      <tr key={product.id}>
-                        <td className="product-name-col">{product.name}</td>
-                        {shopUsers.map((user) => (
-                          <td key={user.id} className="summary-num">
-                            {getShipment(user.id, product.id)}
-                          </td>
-                        ))}
-                        <td className="summary-num summary-total">{total}</td>
-                        <td>
-                          <input
-                            type="number"
-                            className="summary-input"
-                            value={warehouseInputs[product.id] ?? ''}
-                            onChange={(e) =>
-                              setWarehouseInputs({
-                                ...warehouseInputs,
-                                [product.id]: e.target.value,
-                              })
-                            }
-                            onBlur={() => commitWarehouse(product.id)}
-                          />
-                        </td>
-                        <td className="summary-num">
-                          {afterShip !== null ? afterShip : '—'}
-                        </td>
-                        <td>
-                          <input
-                            type="number"
-                            className="summary-input"
-                            value={motorInputs[product.id] ?? ''}
-                            onChange={(e) =>
-                              setMotorInputs({
-                                ...motorInputs,
-                                [product.id]: e.target.value,
-                              })
-                            }
-                            onBlur={() => commitMotor(product.id)}
-                          />
-                        </td>
-                        <td className="summary-num summary-overall">
-                          {overall !== null ? overall : '—'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          {shopUsers.map((user) => (
+            <div
+              key={user.id}
+              className={`user-item ${activeView === user.id ? 'active' : ''}`}
+              onClick={() => handleSelectView(user.id)}
+            >
+              <span className="user-item-name">{user.login}</span>
             </div>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      </aside>
+
+      <main className="main-content with-sidebar">
+        <AdminTopBar
+          title={topBarTitle}
+          onMenuClick={() => setSidebarOpen(true)}
+        />
+
+        <div className="content-area admin-content-area">
+          {error && (
+            <div className="error-banner" onClick={() => setError('')}>
+              {error}
+            </div>
+          )}
+          {success && <div className="success-banner">{success}</div>}
+
+          {loading ? (
+            <div className="loading">Загрузка...</div>
+          ) : activeView === 'summary' ? (
+            renderSummaryView()
+          ) : (
+            renderUserView()
+          )}
+        </div>
+      </main>
     </div>
   );
 }
