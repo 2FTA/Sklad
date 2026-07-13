@@ -1,292 +1,186 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { api, getStoredUser } from '../api';
+import { api } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
-import {
-  getAdminStockDays,
-  formatDateLabel,
-  isMonday,
-  toISODate,
-  buildStockMap,
-  getSales,
-} from '../utils/dates';
+import { getToday, formatDateFull, toISODate } from '../utils/dates';
 import './Dashboard.css';
+import './AdminPages.css';
 
 function Dashboard() {
-  const currentUser = getStoredUser();
+  const today = useMemo(() => getToday(), []);
+  const todayStr = toISODate(today);
+  const todayLabel = formatDateFull(today);
 
-  const [users, setUsers] = useState([]);
-  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [shopUsers, setShopUsers] = useState([]);
   const [products, setProducts] = useState([]);
-  const [stocks, setStocks] = useState([]);
-  const [storeTotal, setStoreTotal] = useState(0);
+  const [shipmentMap, setShipmentMap] = useState({});
+  const [warehouseInputs, setWarehouseInputs] = useState({});
+  const [motorInputs, setMotorInputs] = useState({});
+  const [warehouseCommitted, setWarehouseCommitted] = useState({});
+  const [motorCommitted, setMotorCommitted] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [shipmentInputs, setShipmentInputs] = useState({});
-
-  const dates = useMemo(() => getAdminStockDays(), []);
-  const dateRange = useMemo(() => {
-    const startDate = toISODate(dates[dates.length - 1]);
-    const endDate = toISODate(dates[0]);
-    const totalDate = toISODate(dates[1]);
-    return { startDate, endDate, totalDate };
-  }, [dates]);
-
-  const selectedUser = users.find((u) => u.id === selectedUserId);
-  const displayName = selectedUser?.login || '—';
-  const storeCapacity = selectedUser?.role === 'user' ? (selectedUser.capacity ?? 1000) : null;
-  const freeSpace = storeCapacity !== null ? storeCapacity - storeTotal : null;
-  const stockMap = useMemo(() => buildStockMap(stocks), [stocks]);
-
-  const loadUsers = useCallback(async () => {
-    try {
-      const data = await api.getUsers();
-      setUsers(data);
-      if (!selectedUserId && data.length > 0) {
-        setSelectedUserId(data[0].id);
-      }
-    } catch (err) {
-      setError(err.message);
-    }
-  }, [selectedUserId]);
 
   const loadData = useCallback(async () => {
-    if (!selectedUserId) return;
-
     setLoading(true);
     try {
-      const [productsData, stocksResponse] = await Promise.all([
-        api.getProducts(selectedUserId),
-        api.getStocks(
-          selectedUserId,
-          dateRange.startDate,
-          dateRange.endDate,
-          dateRange.totalDate
-        ),
+      const [usersData, productsData, shipmentsData] = await Promise.all([
+        api.getUsers(),
+        api.getGlobalProducts(),
+        api.getTodayShipments(todayStr),
       ]);
 
+      const shops = usersData.filter((u) => u.role === 'user');
+      setShopUsers(shops);
       setProducts(productsData);
-      setStocks(stocksResponse.stocks || []);
-      setStoreTotal(stocksResponse.storeTotal ?? 0);
 
-      const inputs = {};
-      for (const s of stocksResponse.stocks || []) {
-        inputs[`${s.productId}-${s.date}`] = s.shipments ?? 0;
+      const map = {};
+      for (const row of shipmentsData.shipments || []) {
+        map[`${row.userId}-${row.globalProductId}`] = row.shipments ?? 0;
       }
-      setShipmentInputs(inputs);
+      setShipmentMap(map);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [selectedUserId, dateRange]);
-
-  useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
+  }, [todayStr]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  const flash = (msg) => {
-    setSuccess(msg);
-    setTimeout(() => setSuccess(''), 3000);
+  const getShipment = (userId, globalProductId) => {
+    return shipmentMap[`${userId}-${globalProductId}`] ?? 0;
   };
 
-  const handleSelectUser = (id) => {
-    setSelectedUserId(id);
-    setSidebarOpen(false);
-  };
-
-  const getCellData = (productId, dateStr) => {
-    return stockMap[`${productId}-${dateStr}`] || null;
-  };
-
-  const getShipments = (productId, dateStr) => {
-    const key = `${productId}-${dateStr}`;
-    const cell = getCellData(productId, dateStr);
-    if (shipmentInputs[key] !== undefined) {
-      return parseInt(shipmentInputs[key], 10) || 0;
-    }
-    return cell?.shipments ?? 0;
-  };
-
-  const handleShipmentChange = (productId, dateStr, value) => {
-    setShipmentInputs((prev) => ({
-      ...prev,
-      [`${productId}-${dateStr}`]: value,
-    }));
-  };
-
-  const handleShipmentSave = async (productId, dateStr) => {
-    const key = `${productId}-${dateStr}`;
-    const value = shipmentInputs[key];
-
-    if (value === undefined || value === '') return;
-
-    try {
-      await api.updateShipment(selectedUserId, productId, dateStr, parseInt(value, 10) || 0);
-      flash('Отгрузка сохранена');
-      await loadData();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const renderCell = (product, dateIndex) => {
-    const dateStr = toISODate(dates[dateIndex]);
-    const cell = getCellData(product.id, dateStr);
-
-    if (cell === null) {
-      return (
-        <td key={product.id} className="stock-cell empty-cell">
-          —
-        </td>
-      );
-    }
-
-    const quantity = cell.quantity;
-    const hasQuantity = quantity !== null && quantity !== undefined;
-
-    let sales = null;
-    if (dateIndex < dates.length - 1) {
-      const prevDateStr = toISODate(dates[dateIndex + 1]);
-      const prevQuantity = getCellData(product.id, prevDateStr)?.quantity ?? null;
-      const prevShipments = getShipments(product.id, prevDateStr);
-      sales = getSales(
-        prevQuantity,
-        prevShipments,
-        hasQuantity ? quantity : null
-      );
-    }
-
-    const shipmentKey = `${product.id}-${dateStr}`;
-    const shipmentValue =
-      shipmentInputs[shipmentKey] !== undefined
-        ? shipmentInputs[shipmentKey]
-        : cell.shipments ?? '';
-
-    return (
-      <td key={product.id} className="stock-cell">
-        <div className="stock-cell-inner">
-          {sales !== null ? (
-            <span className={`stock-diff ${sales >= 0 ? 'positive' : 'negative'}`}>
-              {sales > 0 ? `+${sales}` : sales}
-            </span>
-          ) : (
-            <span className="stock-diff empty"> </span>
-          )}
-          <span className="stock-qty">{hasQuantity ? quantity : '—'}</span>
-          <input
-            type="number"
-            className="stock-shipment-input"
-            min="0"
-            value={shipmentValue}
-            onChange={(e) => handleShipmentChange(product.id, dateStr, e.target.value)}
-            onBlur={() => handleShipmentSave(product.id, dateStr)}
-          />
-        </div>
-      </td>
+  const getRowTotal = (globalProductId) => {
+    return shopUsers.reduce(
+      (sum, user) => sum + getShipment(user.id, globalProductId),
+      0
     );
   };
 
+  const parseInput = (value) => {
+    if (value === '' || value === undefined || value === null) return null;
+    const num = parseInt(value, 10);
+    return isNaN(num) ? null : num;
+  };
+
+  const getRowCalcs = (globalProductId) => {
+    const total = getRowTotal(globalProductId);
+    const warehouse = warehouseCommitted[globalProductId] ?? null;
+    const motor = motorCommitted[globalProductId] ?? null;
+    const afterShip = warehouse !== null ? warehouse - total : null;
+    const overall =
+      afterShip !== null && motor !== null ? afterShip + motor : null;
+
+    return { total, afterShip, overall };
+  };
+
+  const commitWarehouse = (productId) => {
+    setWarehouseCommitted((prev) => ({
+      ...prev,
+      [productId]: parseInput(warehouseInputs[productId]),
+    }));
+  };
+
+  const commitMotor = (productId) => {
+    setMotorCommitted((prev) => ({
+      ...prev,
+      [productId]: parseInput(motorInputs[productId]),
+    }));
+  };
+
   return (
-    <div className="dashboard">
-      <div
-        className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`}
-        onClick={() => setSidebarOpen(false)}
-      />
-      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-header">
-          <h2>👥 Пользователи</h2>
-        </div>
-        <div className="user-list">
-          {users.map((u) => (
-            <div
-              key={u.id}
-              className={`user-item ${selectedUserId === u.id ? 'active' : ''}`}
-              onClick={() => handleSelectUser(u.id)}
-            >
-              <span className="user-item-name">
-                {u.login}
-                <span className="user-item-role">{u.role}</span>
-              </span>
-            </div>
-          ))}
-        </div>
-      </aside>
+    <div className="page-layout">
+      <AdminTopBar title={todayLabel} />
 
-      <main className="main-content with-sidebar">
-        <AdminTopBar
-          title={`Склад пользователя: ${displayName}`}
-          onMenuClick={() => setSidebarOpen(true)}
-        />
+      <div className="content-area admin-content-area">
+        {error && (
+          <div className="error-banner" onClick={() => setError('')}>
+            {error}
+          </div>
+        )}
 
-        <div className="content-area admin-content-area">
-          {error && (
-            <div className="error-banner" onClick={() => setError('')}>
-              {error}
-            </div>
-          )}
-          {success && <div className="success-banner">{success}</div>}
+        {loading ? (
+          <div className="loading">Загрузка...</div>
+        ) : products.length === 0 ? (
+          <div className="empty-state">Товаров пока нет</div>
+        ) : shopUsers.length === 0 ? (
+          <div className="empty-state">Нет магазинов для отображения</div>
+        ) : (
+          <div className="stock-scroll-container">
+            <div className="products-table-wrapper summary-table-wrapper">
+              <table className="products-table summary-table">
+                <thead>
+                  <tr>
+                    <th className="product-name-col">Товар</th>
+                    {shopUsers.map((user) => (
+                      <th key={user.id}>{user.login}</th>
+                    ))}
+                    <th>итого</th>
+                    <th>склад</th>
+                    <th>склад после отг</th>
+                    <th>склад Моторная</th>
+                    <th>общий остаток</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map((product) => {
+                    const { total, afterShip, overall } = getRowCalcs(product.id);
 
-          {loading ? (
-            <div className="loading">Загрузка...</div>
-          ) : products.length === 0 ? (
-            <div className="empty-state">У этого пользователя пока нет товаров</div>
-          ) : (
-            <>
-              <div className="store-total">
-                <span>
-                  На магазине: <strong>{storeTotal}</strong>
-                </span>
-                {storeCapacity !== null && (
-                  <>
-                    <span className="store-stat-divider" />
-                    <span>
-                      Вместимость: <strong>{storeCapacity}</strong>
-                    </span>
-                    <span className="store-stat-divider" />
-                    <span>
-                      Свободное место:{' '}
-                      <strong className={freeSpace >= 0 ? 'free-space-ok' : 'free-space-over'}>
-                        {freeSpace}
-                      </strong>
-                    </span>
-                  </>
-                )}
-              </div>
-              <div className="stock-scroll-container">
-                <div className="products-table-wrapper stock-grid-wrapper">
-                  <table className="products-table stock-grid-table">
-                    <thead>
-                      <tr>
-                        <th className="date-col">Дата</th>
-                        {products.map((p) => (
-                          <th key={p.id}>{p.name}</th>
+                    return (
+                      <tr key={product.id}>
+                        <td className="product-name-col">{product.name}</td>
+                        {shopUsers.map((user) => (
+                          <td key={user.id} className="summary-num">
+                            {getShipment(user.id, product.id)}
+                          </td>
                         ))}
+                        <td className="summary-num summary-total">{total}</td>
+                        <td>
+                          <input
+                            type="number"
+                            className="summary-input"
+                            value={warehouseInputs[product.id] ?? ''}
+                            onChange={(e) =>
+                              setWarehouseInputs({
+                                ...warehouseInputs,
+                                [product.id]: e.target.value,
+                              })
+                            }
+                            onBlur={() => commitWarehouse(product.id)}
+                          />
+                        </td>
+                        <td className="summary-num">
+                          {afterShip !== null ? afterShip : '—'}
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            className="summary-input"
+                            value={motorInputs[product.id] ?? ''}
+                            onChange={(e) =>
+                              setMotorInputs({
+                                ...motorInputs,
+                                [product.id]: e.target.value,
+                              })
+                            }
+                            onBlur={() => commitMotor(product.id)}
+                          />
+                        </td>
+                        <td className="summary-num summary-overall">
+                          {overall !== null ? overall : '—'}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {dates.map((date, dateIndex) => (
-                        <tr
-                          key={toISODate(date)}
-                          className={isMonday(date) ? 'monday-row' : ''}
-                        >
-                          <td className="date-col">{formatDateLabel(date)}</td>
-                          {products.map((product) => renderCell(product, dateIndex))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </main>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -87,6 +87,71 @@
   font-size: 0.85rem;
 }
 
+.summary-date-label {
+  background: #fff;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.summary-table-wrapper {
+  overflow-x: auto;
+}
+
+.summary-table {
+  min-width: 800px;
+}
+
+.summary-table .product-name-col {
+  position: sticky;
+  left: 0;
+  background: #f1f5f9;
+  z-index: 1;
+  min-width: 140px;
+  font-weight: 500;
+}
+
+.summary-table tbody .product-name-col {
+  background: #fff;
+}
+
+.summary-table tbody tr:nth-child(even) .product-name-col {
+  background: #f8fafc;
+}
+
+.summary-num {
+  text-align: center;
+  font-weight: 500;
+}
+
+.summary-total {
+  font-weight: 600;
+  background: #f1f5f9;
+}
+
+.summary-overall {
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.summary-input {
+  width: 72px;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.summary-input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
 .capacity-input:focus {
   outline: none;
   border-color: #2563eb;

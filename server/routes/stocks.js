@@ -1,6 +1,6 @@
 const express = require('express');
 const pool = require('../db');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, adminOnly } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -85,6 +85,28 @@ router.post('/', async (req, res) => {
     }
 
     res.json({ success: true, date, saved });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+router.get('/today', adminOnly, async (req, res) => {
+  const date = req.query.date || todayISO();
+
+  try {
+    const result = await pool.query(
+      `SELECT p.user_id AS "userId", gp.id AS "globalProductId",
+              COALESCE(ds.shipments, 0)::int AS shipments
+       FROM products p
+       JOIN global_products gp ON p.global_product_id = gp.id
+       JOIN users u ON u.id = p.user_id AND u.role = 'user'
+       LEFT JOIN daily_stocks ds ON ds.product_id = p.id AND ds.date = $1::date
+       ORDER BY gp.order_index ASC, u.login ASC`,
+      [date]
+    );
+
+    res.json({ date, shipments: result.rows });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка сервера' });

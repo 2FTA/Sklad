@@ -140,6 +140,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ userId, date, stocks }),
     }),
+
+  getTodayShipments: (date) => {
+    const params = date ? `?date=${date}` : '';
+    return request(`/stocks/today${params}`);
+  },
 };
 
 export function saveAuth(token, user) {
