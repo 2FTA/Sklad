@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 import { api } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
 import {
@@ -160,7 +162,49 @@ function Dashboard() {
     const overall =
       afterShip !== null && motor !== null ? afterShip + motor : null;
 
-    return { total, afterShip, overall };
+    return { total, warehouse, motor, afterShip, overall };
+  };
+
+  const toExcelValue = (value) => {
+    if (value === null || value === undefined) return undefined;
+    return value;
+  };
+
+  const handleExportSummary = () => {
+    const headers = [
+      'Товар',
+      ...shopUsers.map((u) => u.login),
+      'итого',
+      'склад',
+      'склад после отг',
+      'склад Моторная',
+      'общий остаток',
+    ];
+
+    const rows = globalProducts.map((product) => {
+      const { total, warehouse, motor, afterShip, overall } = getRowCalcs(product.id);
+
+      return [
+        product.name,
+        ...shopUsers.map((u) => getSummaryShipment(u.id, product.id)),
+        total,
+        toExcelValue(warehouse),
+        toExcelValue(afterShip),
+        toExcelValue(motor),
+        toExcelValue(overall),
+      ];
+    });
+
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Сводка');
+    const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    saveAs(
+      new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }),
+      `Сводка_${todayLabel}.xlsx`
+    );
   };
 
   const getCellData = (productId, dateStr) => {
@@ -438,6 +482,18 @@ function Dashboard() {
         <AdminTopBar
           title={topBarTitle}
           onMenuClick={() => setSidebarOpen(true)}
+          leftExtra={
+            activeView === 'summary' ? (
+              <button
+                type="button"
+                className="btn-export"
+                onClick={handleExportSummary}
+                disabled={loading}
+              >
+                Экспорт
+              </button>
+            ) : null
+          }
         />
 
         <div className="content-area admin-content-area">

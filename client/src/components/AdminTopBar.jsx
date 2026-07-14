@@ -2,7 +2,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { clearAuth } from '../api';
 import './AdminTopBar.css';
 
-function AdminTopBar({ title, onMenuClick }) {
+function AdminTopBar({ title, onMenuClick, leftExtra }) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -29,6 +29,7 @@ function AdminTopBar({ title, onMenuClick }) {
           </Link>
         )}
         <h1>{title}</h1>
+        {leftExtra}
       </div>
       <div className="top-bar-actions admin-nav">
         <Link

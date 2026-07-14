@@ -40,6 +40,32 @@
   text-decoration: underline;
 }
 
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.btn-export {
+  background: #16a34a;
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.btn-export:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.btn-export:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 @media (max-width: 768px) {
   .admin-nav {
     width: 100%;
