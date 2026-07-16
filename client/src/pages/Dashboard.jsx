@@ -11,7 +11,6 @@ import {
   isMonday,
   toISODate,
   buildStockMap,
-  getSales,
 } from '../utils/dates';
 import './Dashboard.css';
 import './AdminPages.css';
@@ -267,15 +266,14 @@ function Dashboard() {
     const hasQuantity = quantity !== null && quantity !== undefined;
 
     let sales = null;
-    if (dateIndex < dates.length - 1) {
-      const prevDateStr = toISODate(dates[dateIndex + 1]);
-      const prevQuantity = getCellData(product.id, prevDateStr)?.quantity ?? null;
-      const prevShipments = getShipments(product.id, prevDateStr);
-      sales = getSales(
-        prevQuantity,
-        prevShipments,
-        hasQuantity ? quantity : null
-      );
+    if (dateIndex >= 2) {
+      const nextDateStr = toISODate(dates[dateIndex - 1]);
+      const nextQuantity = getCellData(product.id, nextDateStr)?.quantity ?? null;
+
+      if (hasQuantity && nextQuantity !== null && nextQuantity !== undefined) {
+        const currentShipments = getShipments(product.id, dateStr);
+        sales = quantity + currentShipments - nextQuantity;
+      }
     }
 
     const shipmentKey = `${product.id}-${dateStr}`;
