@@ -221,6 +221,8 @@ function Dashboard() {
   };
 
   const handleShipmentChange = (productId, dateStr, value) => {
+    if (dateStr !== todayStr) return;
+
     setShipmentInputs((prev) => ({
       ...prev,
       [`${productId}-${dateStr}`]: value,
@@ -228,6 +230,8 @@ function Dashboard() {
   };
 
   const handleShipmentSave = async (productId, dateStr) => {
+    if (dateStr !== todayStr) return;
+
     const key = `${productId}-${dateStr}`;
     const value = shipmentInputs[key];
 
@@ -279,6 +283,9 @@ function Dashboard() {
       shipmentInputs[shipmentKey] !== undefined
         ? shipmentInputs[shipmentKey]
         : cell.shipments ?? '';
+    const isToday = dateStr === todayStr;
+    const displayShipment =
+      shipmentValue === '' || shipmentValue === undefined ? '—' : shipmentValue;
 
     return (
       <td key={product.id} className="stock-cell">
@@ -291,16 +298,20 @@ function Dashboard() {
             <span className="stock-diff empty"> </span>
           )}
           <span className="stock-qty">{hasQuantity ? quantity : '—'}</span>
-          <input
-            type="number"
-            className="stock-shipment-input"
-            min="0"
-            value={shipmentValue}
-            onChange={(e) =>
-              handleShipmentChange(product.id, dateStr, e.target.value)
-            }
-            onBlur={() => handleShipmentSave(product.id, dateStr)}
-          />
+          {isToday ? (
+            <input
+              type="number"
+              className="stock-shipment-input"
+              min="0"
+              value={shipmentValue}
+              onChange={(e) =>
+                handleShipmentChange(product.id, dateStr, e.target.value)
+              }
+              onBlur={() => handleShipmentSave(product.id, dateStr)}
+            />
+          ) : (
+            <span className="stock-shipment-readonly">{displayShipment}</span>
+          )}
         </div>
       </td>
     );

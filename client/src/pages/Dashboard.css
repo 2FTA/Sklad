@@ -645,3 +645,13 @@
   outline: none;
   border-color: #2563eb;
 }
+
+.stock-shipment-readonly {
+  display: inline-block;
+  min-width: 56px;
+  padding: 0.3rem 0.4rem;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #64748b;
+}
