@@ -68,7 +68,8 @@ async function ensureReportsSchema(pool) {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS report_stocks (
       id SERIAL PRIMARY KEY,
-      report_product_id INTEGER NOT NULL REFERENCES report_products(id) ON DELETE CASCADE,
+      report_id INTEGER NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+      product_id INTEGER NOT NULL REFERENCES report_products(id) ON DELETE CASCADE,
       date DATE NOT NULL,
       quantity INTEGER,
       shipments INTEGER NOT NULL DEFAULT 0
@@ -77,7 +78,7 @@ async function ensureReportsSchema(pool) {
 
   await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_report_stocks_product_date
-    ON report_stocks (report_product_id, date)
+    ON report_stocks (report_id, product_id, date)
   `);
 }
 

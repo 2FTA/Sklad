@@ -140,9 +140,9 @@ router.post('/generate', async (req, res) => {
         }
 
         await client.query(
-          `INSERT INTO report_stocks (report_product_id, date, quantity, shipments)
-           VALUES ($1, $2::date, $3, $4)`,
-          [reportProductId, date, quantity, shipments]
+          `INSERT INTO report_stocks (report_id, product_id, date, quantity, shipments)
+           VALUES ($1, $2, $3::date, $4, $5)`,
+          [report.id, reportProductId, date, quantity, shipments]
         );
       }
     }
@@ -191,8 +191,8 @@ router.get('/:userId/:month', async (req, res) => {
     const stocksResult = await pool.query(
       `SELECT rp.id AS "productId", rs.date::text AS date, rs.quantity, rs.shipments
        FROM report_stocks rs
-       JOIN report_products rp ON rp.id = rs.report_product_id
-       WHERE rp.report_id = $1
+       JOIN report_products rp ON rp.id = rs.product_id
+       WHERE rs.report_id = $1
        ORDER BY rs.date ASC, rp.order_index ASC`,
       [report.id]
     );
@@ -245,6 +245,10 @@ router.delete('/:reportId/products/:productId', async (req, res) => {
       return res.status(404).json({ error: 'Товар не найден в отчете' });
     }
 
+    await pool.query(
+      'DELETE FROM report_stocks WHERE report_id = $1 AND product_id = $2',
+      [reportId, productId]
+    );
     await pool.query('DELETE FROM report_products WHERE id = $1', [productId]);
 
     res.json({ success: true });
