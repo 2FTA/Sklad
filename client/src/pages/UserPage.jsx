@@ -80,7 +80,7 @@ function UserPage() {
   };
 
   return (
-    <div className="page-layout">
+    <div className="user-page-layout">
       <div className="top-bar">
         <h1>Мой склад</h1>
         <div className="top-bar-actions">
