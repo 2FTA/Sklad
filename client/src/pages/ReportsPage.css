@@ -42,3 +42,40 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.reports-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f1f5f9;
+}
+
+.reports-table .date-col {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 72px;
+  white-space: nowrap;
+  font-weight: 500;
+  background: #f1f5f9;
+}
+
+.reports-table thead .date-col {
+  z-index: 3;
+}
+
+.reports-table tbody .date-col {
+  background: #fff;
+}
+
+.reports-table tbody tr:nth-child(even) .date-col {
+  background: #f8fafc;
+}
+
+.reports-table tbody tr:hover .date-col {
+  background: #f1f5f9;
+}
+
+.reports-table tbody tr:nth-child(even):hover .date-col {
+  background: #f1f5f9;
+}

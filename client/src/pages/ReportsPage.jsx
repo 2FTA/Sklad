@@ -238,7 +238,7 @@ function ReportsPage() {
           <div className="table-panel">
             <div className="stock-scroll-container">
               <div className="products-table-wrapper stock-grid-wrapper">
-                <table className="products-table stock-grid-table">
+                <table className="products-table reports-table">
                   <thead>
                     <tr>
                       <th className="date-col">Дата</th>

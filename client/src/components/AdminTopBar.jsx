@@ -23,7 +23,7 @@ function AdminTopBar({ title, onMenuClick, leftExtra }) {
             ☰
           </button>
         )}
-        {location.pathname !== '/' && location.pathname !== '/reports' && (
+        {location.pathname !== '/' && (
           <Link to="/" className="back-link">
             ← Склад
           </Link>
