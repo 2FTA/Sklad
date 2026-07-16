@@ -7,20 +7,42 @@ const router = express.Router();
 
 router.use(authMiddleware, adminOnly);
 
-function getMonthDays(month) {
-  const [yearStr, monthStr] = month.split('-');
+const MONTH_KEY_REGEX = /^\d{4}-\d{2}$/;
+
+function monthKeyToDate(monthKey) {
+  return `${monthKey}-01`;
+}
+
+function getMonthDays(monthKey) {
+  const { startDate, endDate } = getMonthBounds(monthKey);
+  const dates = [];
+  const [yearStr, monthStr, dayStr] = startDate.split('-');
   const year = parseInt(yearStr, 10);
   const monthNum = parseInt(monthStr, 10);
-  const daysCount = new Date(year, monthNum, 0).getDate();
-  const dates = [];
+  const lastDay = parseInt(endDate.split('-')[2], 10);
 
-  for (let day = 1; day <= daysCount; day++) {
+  for (let day = parseInt(dayStr, 10); day <= lastDay; day++) {
     const m = String(monthNum).padStart(2, '0');
     const d = String(day).padStart(2, '0');
     dates.push(`${year}-${m}-${d}`);
   }
 
   return dates;
+}
+
+function getMonthBounds(monthKey) {
+  const [yearStr, monthStr] = monthKey.split('-');
+  const year = parseInt(yearStr, 10);
+  const monthNum = parseInt(monthStr, 10);
+  const startDate = monthKeyToDate(monthKey);
+  const lastDay = new Date(year, monthNum, 0).getDate();
+  const m = String(monthNum).padStart(2, '0');
+  const d = String(lastDay).padStart(2, '0');
+
+  return {
+    startDate,
+    endDate: `${year}-${m}-${d}`,
+  };
 }
 
 async function verifyAdminPassword(adminUserId, password) {
@@ -40,7 +62,7 @@ router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT r.id, r.user_id AS "userId", u.login AS "userLogin",
-              r.month, r.created_at AS "createdAt"
+              to_char(r.month, 'YYYY-MM') AS month, r.created_at AS "createdAt"
        FROM reports r
        JOIN users u ON u.id = r.user_id
        ORDER BY r.month DESC, u.login ASC`
@@ -57,9 +79,11 @@ router.post('/generate', async (req, res) => {
   const userId = parseInt(req.body.userId, 10);
   const month = req.body.month;
 
-  if (!userId || !month || !/^\d{4}-\d{2}$/.test(month)) {
+  if (!userId || !month || !MONTH_KEY_REGEX.test(month)) {
     return res.status(400).json({ error: 'Укажите магазин и месяц' });
   }
+
+  const monthDate = monthKeyToDate(month);
 
   const client = await pool.connect();
 
@@ -77,8 +101,8 @@ router.post('/generate', async (req, res) => {
     }
 
     const existing = await client.query(
-      'SELECT id FROM reports WHERE user_id = $1 AND month = $2',
-      [userId, month]
+      'SELECT id FROM reports WHERE user_id = $1 AND month = $2::date',
+      [userId, monthDate]
     );
 
     if (existing.rows.length > 0) {
@@ -88,12 +112,15 @@ router.post('/generate', async (req, res) => {
 
     const reportResult = await client.query(
       `INSERT INTO reports (user_id, month)
-       VALUES ($1, $2)
+       VALUES ($1, $2::date)
        RETURNING id, user_id AS "userId", month, created_at AS "createdAt"`,
-      [userId, month]
+      [userId, monthDate]
     );
 
-    const report = reportResult.rows[0];
+    const report = {
+      ...reportResult.rows[0],
+      month,
+    };
     const monthDays = getMonthDays(month);
 
     const globalProducts = await client.query(
@@ -162,23 +189,28 @@ router.get('/:userId/:month', async (req, res) => {
   const userId = parseInt(req.params.userId, 10);
   const month = req.params.month;
 
-  if (!userId || !/^\d{4}-\d{2}$/.test(month)) {
+  if (!userId || !MONTH_KEY_REGEX.test(month)) {
     return res.status(400).json({ error: 'Некорректные параметры' });
   }
+
+  const monthDate = monthKeyToDate(month);
 
   try {
     const reportResult = await pool.query(
       `SELECT id, user_id AS "userId", month, created_at AS "createdAt"
        FROM reports
-       WHERE user_id = $1 AND month = $2`,
-      [userId, month]
+       WHERE user_id = $1 AND month = $2::date`,
+      [userId, monthDate]
     );
 
     if (reportResult.rows.length === 0) {
       return res.json({ exists: false });
     }
 
-    const report = reportResult.rows[0];
+    const report = {
+      ...reportResult.rows[0],
+      month,
+    };
 
     const productsResult = await pool.query(
       `SELECT id, name, order_index AS "orderIndex", global_product_id AS "globalProductId", weight

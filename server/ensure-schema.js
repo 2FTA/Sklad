@@ -48,7 +48,7 @@ async function ensureReportsSchema(pool) {
     CREATE TABLE IF NOT EXISTS reports (
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      month VARCHAR(7) NOT NULL,
+      month DATE NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT NOW(),
       UNIQUE(user_id, month)
     )
