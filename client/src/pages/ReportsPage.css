@@ -79,3 +79,109 @@
 .reports-table tbody tr:nth-child(even):hover .date-col {
   background: #f1f5f9;
 }
+
+.reports-product-col {
+  min-width: 110px;
+  vertical-align: bottom;
+}
+
+.reports-product-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.reports-product-header span {
+  text-align: center;
+  line-height: 1.2;
+}
+
+.btn-delete-from-report {
+  background: #fee2e2;
+  color: #dc2626;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.btn-delete-from-report:hover {
+  background: #fecaca;
+}
+
+.reports-create-panel {
+  background: #fff;
+  border-radius: 10px;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  flex-shrink: 0;
+}
+
+.reports-create-panel p {
+  color: #475569;
+  margin-bottom: 0.75rem;
+}
+
+.reports-create-hint {
+  font-size: 0.9rem;
+  color: #64748b !important;
+  margin-bottom: 1.5rem !important;
+}
+
+.btn-create-report {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-create-report:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.btn-create-report:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.modal-text {
+  color: #475569;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.modal-error {
+  color: #dc2626;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.modal .form-group label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.modal .form-group input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+}
+
+.modal .form-group input:focus {
+  outline: none;
+  border-color: #2563eb;
+}

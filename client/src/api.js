@@ -145,6 +145,22 @@ export const api = {
     const params = date ? `?date=${date}` : '';
     return request(`/stocks/today${params}`);
   },
+
+  getReports: () => request('/reports'),
+
+  getReport: (userId, month) => request(`/reports/${userId}/${month}`),
+
+  generateReport: (userId, month) =>
+    request('/reports/generate', {
+      method: 'POST',
+      body: JSON.stringify({ userId, month }),
+    }),
+
+  deleteReportProduct: (reportId, productId, password) =>
+    request(`/reports/${reportId}/products/${productId}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ password }),
+    }),
 };
 
 export function saveAuth(token, user) {

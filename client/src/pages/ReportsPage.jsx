@@ -5,7 +5,6 @@ import { api } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
 import {
   getReportMonths,
-  getMonthRange,
   getDaysInMonth,
   formatDayMonth,
   getMonthLabel,
@@ -16,16 +15,64 @@ import './Dashboard.css';
 import './AdminPages.css';
 import './ReportsPage.css';
 
+function DeleteProductModal({ productName, onConfirm, onClose, loading, error }) {
+  const [password, setPassword] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onConfirm(password);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>Удалить из отчета</h3>
+        <p className="modal-text">
+          Товар «{productName}» будет удален только из этого отчета. Глобальный список
+          товаров не изменится.
+        </p>
+        <form className="modal-form" onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Пароль администратора</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoFocus
+            />
+          </div>
+          {error && <div className="modal-error">{error}</div>}
+          <div className="modal-actions">
+            <button type="button" className="btn-cancel" onClick={onClose} disabled={loading}>
+              Отмена
+            </button>
+            <button type="submit" className="btn-sm btn-delete" disabled={loading}>
+              {loading ? 'Удаление...' : 'Удалить'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function ReportsPage() {
   const monthOptions = useMemo(() => getReportMonths(), []);
 
   const [shopUsers, setShopUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(monthOptions[0]?.value || '');
+  const [reportId, setReportId] = useState(null);
+  const [reportExists, setReportExists] = useState(false);
   const [products, setProducts] = useState([]);
   const [stockMap, setStockMap] = useState({});
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const days = useMemo(
     () => (selectedMonth ? getDaysInMonth(selectedMonth) : []),
@@ -55,14 +102,20 @@ function ReportsPage() {
     setError('');
 
     try {
-      const { startDate, endDate } = getMonthRange(selectedMonth);
-      const [productsData, stocksResponse] = await Promise.all([
-        api.getProducts(Number(selectedUserId)),
-        api.getStocks(Number(selectedUserId), startDate, endDate),
-      ]);
+      const data = await api.getReport(Number(selectedUserId), selectedMonth);
 
-      setProducts(productsData);
-      setStockMap(buildStockMap(stocksResponse.stocks || []));
+      if (!data.exists) {
+        setReportExists(false);
+        setReportId(null);
+        setProducts([]);
+        setStockMap({});
+        return;
+      }
+
+      setReportExists(true);
+      setReportId(data.report.id);
+      setProducts(data.products.map((p) => ({ id: p.id, name: p.name })));
+      setStockMap(buildStockMap(data.stocks || []));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -79,6 +132,37 @@ function ReportsPage() {
       loadReport();
     }
   }, [selectedUserId, selectedMonth, loadReport]);
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    setError('');
+
+    try {
+      await api.generateReport(Number(selectedUserId), selectedMonth);
+      await loadReport();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleDeleteProduct = async (password) => {
+    if (!deleteTarget || !reportId) return;
+
+    setDeleteLoading(true);
+    setDeleteError('');
+
+    try {
+      await api.deleteReportProduct(reportId, deleteTarget.id, password);
+      setDeleteTarget(null);
+      await loadReport();
+    } catch (err) {
+      setDeleteError(err.message);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   const getCellData = (productId, dateStr) => {
     return stockMap[`${productId}-${dateStr}`] || null;
@@ -218,7 +302,7 @@ function ReportsPage() {
             type="button"
             className="btn-export"
             onClick={handleExport}
-            disabled={loading || products.length === 0 || !selectedUserId}
+            disabled={loading || !reportExists || products.length === 0}
           >
             Экспорт
           </button>
@@ -232,8 +316,24 @@ function ReportsPage() {
 
         {loading ? (
           <div className="loading">Загрузка...</div>
+        ) : !reportExists ? (
+          <div className="reports-create-panel">
+            <p>Отчет за выбранный месяц еще не создан.</p>
+            <p className="reports-create-hint">
+              При создании будет сохранен снимок текущего списка товаров и данных склада
+              за этот месяц.
+            </p>
+            <button
+              type="button"
+              className="btn-create-report"
+              onClick={handleGenerate}
+              disabled={generating || !selectedUserId}
+            >
+              {generating ? 'Создание...' : 'Создать отчет'}
+            </button>
+          </div>
         ) : products.length === 0 ? (
-          <div className="empty-state">У этого магазина пока нет товаров</div>
+          <div className="empty-state">В этом отчете нет товаров</div>
         ) : (
           <div className="table-panel">
             <div className="stock-scroll-container">
@@ -243,7 +343,22 @@ function ReportsPage() {
                     <tr>
                       <th className="date-col">Дата</th>
                       {products.map((product) => (
-                        <th key={product.id}>{product.name}</th>
+                        <th key={product.id} className="reports-product-col">
+                          <div className="reports-product-header">
+                            <span>{product.name}</span>
+                            <button
+                              type="button"
+                              className="btn-delete-from-report"
+                              onClick={() => {
+                                setDeleteError('');
+                                setDeleteTarget(product);
+                              }}
+                              title="Удалить из отчета"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </th>
                       ))}
                     </tr>
                   </thead>
@@ -261,6 +376,19 @@ function ReportsPage() {
           </div>
         )}
       </div>
+
+      {deleteTarget && (
+        <DeleteProductModal
+          productName={deleteTarget.name}
+          onConfirm={handleDeleteProduct}
+          onClose={() => {
+            setDeleteTarget(null);
+            setDeleteError('');
+          }}
+          loading={deleteLoading}
+          error={deleteError}
+        />
+      )}
     </div>
   );
 }
