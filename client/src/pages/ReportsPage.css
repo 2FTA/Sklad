@@ -1,0 +1,44 @@
+.reports-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-shrink: 0;
+}
+
+.reports-select {
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: #fff;
+  min-width: 180px;
+}
+
+.reports-select:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.reports-toolbar .btn-export {
+  background: #16a34a;
+  color: #fff;
+  border: none;
+  padding: 0.55rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.reports-toolbar .btn-export:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.reports-toolbar .btn-export:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

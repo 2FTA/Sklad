@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard';
 import UserPage from './pages/UserPage';
 import UsersManagement from './pages/UsersManagement';
 import ProductsManagement from './pages/ProductsManagement';
+import ReportsPage from './pages/ReportsPage';
 import AdminRoute from './components/AdminRoute';
 import { getStoredUser } from './api';
 
@@ -42,6 +43,14 @@ function App() {
         element={
           <AdminRoute>
             <ProductsManagement />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/reports"
+        element={
+          <AdminRoute>
+            <ReportsPage />
           </AdminRoute>
         }
       />

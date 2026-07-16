@@ -23,7 +23,7 @@ function AdminTopBar({ title, onMenuClick, leftExtra }) {
             ☰
           </button>
         )}
-        {location.pathname !== '/' && (
+        {location.pathname !== '/' && location.pathname !== '/reports' && (
           <Link to="/" className="back-link">
             ← Склад
           </Link>
@@ -32,6 +32,12 @@ function AdminTopBar({ title, onMenuClick, leftExtra }) {
         {leftExtra}
       </div>
       <div className="top-bar-actions admin-nav">
+        <Link
+          to="/reports"
+          className={`btn-nav ${location.pathname === '/reports' ? 'active' : ''}`}
+        >
+          Отчеты
+        </Link>
         <Link
           to="/admin/users"
           className={`btn-nav ${location.pathname === '/admin/users' ? 'active' : ''}`}
