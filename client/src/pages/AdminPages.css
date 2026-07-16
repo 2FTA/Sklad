@@ -1,5 +1,9 @@
 .page-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
   background: #f8fafc;
 }
 
@@ -99,7 +103,7 @@
 }
 
 .summary-table-wrapper {
-  overflow-x: auto;
+  overflow: visible;
 }
 
 .summary-table {

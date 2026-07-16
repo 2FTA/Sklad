@@ -320,8 +320,9 @@ function Dashboard() {
     }
 
     return (
-      <div className="stock-scroll-container">
-        <div className="products-table-wrapper summary-table-wrapper">
+      <div className="table-panel">
+        <div className="stock-scroll-container">
+          <div className="products-table-wrapper summary-table-wrapper">
           <table className="products-table summary-table">
             <thead>
               <tr>
@@ -388,6 +389,7 @@ function Dashboard() {
           </table>
         </div>
       </div>
+    </div>
     );
   };
 
@@ -397,7 +399,7 @@ function Dashboard() {
     }
 
     return (
-      <>
+      <div className="table-panel">
         <div className="store-total">
           <span>
             На магазине: <strong>{storeTotal}</strong>
@@ -445,7 +447,7 @@ function Dashboard() {
             </table>
           </div>
         </div>
-      </>
+      </div>
     );
   };
 
