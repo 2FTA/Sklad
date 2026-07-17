@@ -253,8 +253,9 @@ function Dashboard() {
   const renderUserCell = (product, dateIndex) => {
     const dateStr = toISODate(dates[dateIndex]);
     const cell = getCellData(product.id, dateStr);
+    const isToday = dateStr === todayStr;
 
-    if (cell === null) {
+    if (cell === null && !isToday) {
       return (
         <td key={product.id} className="stock-cell empty-cell">
           —
@@ -262,11 +263,11 @@ function Dashboard() {
       );
     }
 
-    const quantity = cell.quantity;
+    const quantity = cell?.quantity;
     const hasQuantity = quantity !== null && quantity !== undefined;
 
     let sales = null;
-    if (dateIndex >= 2) {
+    if (cell !== null && dateIndex >= 2) {
       const nextDateStr = toISODate(dates[dateIndex - 1]);
       const nextQuantity = getCellData(product.id, nextDateStr)?.quantity ?? null;
 
@@ -280,8 +281,7 @@ function Dashboard() {
     const shipmentValue =
       shipmentInputs[shipmentKey] !== undefined
         ? shipmentInputs[shipmentKey]
-        : cell.shipments ?? '';
-    const isToday = dateStr === todayStr;
+        : cell?.shipments ?? '';
     const displayShipment =
       shipmentValue === '' || shipmentValue === undefined ? '—' : shipmentValue;
 
