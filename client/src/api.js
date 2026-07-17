@@ -150,12 +150,6 @@ export const api = {
 
   getReport: (userId, month) => request(`/reports/${userId}/${month}`),
 
-  generateReport: (userId, month) =>
-    request('/reports/generate', {
-      method: 'POST',
-      body: JSON.stringify({ userId, month }),
-    }),
-
   deleteReportProduct: (reportId, productId, password) =>
     request(`/reports/${reportId}/products/${productId}`, {
       method: 'DELETE',

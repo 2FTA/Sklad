@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db');
 const { authMiddleware, adminOnly } = require('../middleware/auth');
+const { syncDailyStockToReport } = require('../utils/reportSync');
 
 const router = express.Router();
 
@@ -82,6 +83,19 @@ router.post('/', async (req, res) => {
       );
 
       saved.push(result.rows[0]);
+
+      try {
+        await syncDailyStockToReport(
+          pool,
+          targetUserId,
+          date,
+          productId,
+          result.rows[0].quantity,
+          result.rows[0].shipments
+        );
+      } catch (syncErr) {
+        console.error('Ошибка синхронизации отчета:', syncErr);
+      }
     }
 
     res.json({ success: true, date, saved });
@@ -213,6 +227,19 @@ router.put('/:userId/shipment', async (req, res) => {
 
     const row = result.rows[0];
     const productInfo = await pool.query('SELECT name FROM products WHERE id = $1', [productId]);
+
+    try {
+      await syncDailyStockToReport(
+        pool,
+        userId,
+        date,
+        parseInt(productId, 10),
+        row.quantity,
+        row.shipments
+      );
+    } catch (syncErr) {
+      console.error('Ошибка синхронизации отчета:', syncErr);
+    }
 
     res.json({
       productId: row.productId,

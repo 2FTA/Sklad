@@ -68,7 +68,6 @@ function ReportsPage() {
   const [products, setProducts] = useState([]);
   const [stockMap, setStockMap] = useState({});
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -132,20 +131,6 @@ function ReportsPage() {
       loadReport();
     }
   }, [selectedUserId, selectedMonth, loadReport]);
-
-  const handleGenerate = async () => {
-    setGenerating(true);
-    setError('');
-
-    try {
-      await api.generateReport(Number(selectedUserId), selectedMonth);
-      await loadReport();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setGenerating(false);
-    }
-  };
 
   const handleDeleteProduct = async (password) => {
     if (!deleteTarget || !reportId) return;
@@ -317,20 +302,9 @@ function ReportsPage() {
         {loading ? (
           <div className="loading">Загрузка...</div>
         ) : !reportExists ? (
-          <div className="reports-create-panel">
-            <p>Отчет за выбранный месяц еще не создан.</p>
-            <p className="reports-create-hint">
-              При создании будет сохранен снимок текущего списка товаров и данных склада
-              за этот месяц.
-            </p>
-            <button
-              type="button"
-              className="btn-create-report"
-              onClick={handleGenerate}
-              disabled={generating || !selectedUserId}
-            >
-              {generating ? 'Создание...' : 'Создать отчет'}
-            </button>
+          <div className="empty-state">
+            Отчет за этот месяц пока не создан. Данные появятся после сохранения
+            остатков или отгрузок в магазине.
           </div>
         ) : products.length === 0 ? (
           <div className="empty-state">В этом отчете нет товаров</div>
