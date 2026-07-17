@@ -44,42 +44,9 @@ async function ensureDailyStocksSchema(pool) {
 }
 
 async function ensureReportsSchema(pool) {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS reports (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      month DATE NOT NULL,
-      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-      UNIQUE(user_id, month)
-    )
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS report_products (
-      id SERIAL PRIMARY KEY,
-      report_id INTEGER NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
-      name VARCHAR(255) NOT NULL,
-      order_index INTEGER NOT NULL DEFAULT 0,
-      global_product_id INTEGER,
-      weight VARCHAR(10) DEFAULT '1л'
-    )
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS report_stocks (
-      id SERIAL PRIMARY KEY,
-      report_id INTEGER NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
-      product_id INTEGER NOT NULL REFERENCES report_products(id) ON DELETE CASCADE,
-      date DATE NOT NULL,
-      quantity INTEGER,
-      shipments INTEGER NOT NULL DEFAULT 0
-    )
-  `);
-
-  await pool.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_report_stocks_product_date
-    ON report_stocks (report_id, product_id, date)
-  `);
+  // Таблицы reports, report_products и report_stocks созданы в Supabase вручную.
+  // Не создаём их здесь, чтобы не конфликтовать со схемой production.
+  void pool;
 }
 
 async function ensureSchema(pool) {

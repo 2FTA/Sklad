@@ -139,10 +139,10 @@ router.post('/generate', async (req, res) => {
 
     for (const gp of globalProducts.rows) {
       const reportProductResult = await client.query(
-        `INSERT INTO report_products (report_id, name, order_index, global_product_id, weight)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO report_products (report_id, product_name, order_index, weight)
+         VALUES ($1, $2, $3, $4)
          RETURNING id`,
-        [report.id, gp.name, gp.order_index, gp.id, gp.weight || '1л']
+        [report.id, gp.name, gp.order_index, gp.weight || '1л']
       );
 
       const reportProductId = reportProductResult.rows[0].id;
@@ -213,7 +213,7 @@ router.get('/:userId/:month', async (req, res) => {
     };
 
     const productsResult = await pool.query(
-      `SELECT id, name, order_index AS "orderIndex", global_product_id AS "globalProductId", weight
+      `SELECT id, product_name AS name, order_index AS "orderIndex", weight
        FROM report_products
        WHERE report_id = $1
        ORDER BY order_index ASC, id ASC`,
