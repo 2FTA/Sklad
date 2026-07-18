@@ -569,6 +569,58 @@
   min-width: 130px;
   white-space: nowrap;
   font-weight: 500;
+  vertical-align: middle;
+}
+
+.date-col-with-legend {
+  min-width: 150px;
+  white-space: normal;
+}
+
+.date-cell-inner {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.date-label {
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding-top: 0.125rem;
+}
+
+.date-legend {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.date-legend-item {
+  font-size: 0.75rem;
+  line-height: 1;
+  color: #1e293b;
+}
+
+.date-legend-sales {
+  min-height: 1rem;
+  font-weight: 600;
+  color: #16a34a;
+}
+
+.date-legend-qty {
+  min-height: 1.25rem;
+  display: flex;
+  align-items: center;
+  font-size: 0.75rem;
+}
+
+.date-legend-field {
+  min-height: 1.75rem;
+  display: flex;
+  align-items: center;
 }
 
 .stock-grid-table tbody .date-col {
@@ -664,9 +716,4 @@
   font-size: 0.75rem;
   font-weight: 500;
   color: #64748b;
-}
-
-.stock-shipment-input::placeholder {
-  color: #94a3b8;
-  font-size: 0.7rem;
 }

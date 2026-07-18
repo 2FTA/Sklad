@@ -362,7 +362,6 @@ function Dashboard() {
                 type="number"
                 className="stock-shipment-input"
                 min="0"
-                placeholder="отг"
                 value={shipmentValue}
                 onChange={(e) =>
                   handleTodayFieldChange(product.id, dateStr, 'shipments', e.target.value)
@@ -373,7 +372,6 @@ function Dashboard() {
                 type="number"
                 className="stock-shipment-input"
                 min="0"
-                placeholder="пер"
                 value={movementValue}
                 onChange={(e) =>
                   handleTodayFieldChange(product.id, dateStr, 'movement', e.target.value)
@@ -384,7 +382,6 @@ function Dashboard() {
                 type="number"
                 className="stock-shipment-input"
                 min="0"
-                placeholder="воз"
                 value={returnValue}
                 onChange={(e) =>
                   handleTodayFieldChange(product.id, dateStr, 'return', e.target.value)
@@ -403,6 +400,30 @@ function Dashboard() {
               )}
             </>
           )}
+        </div>
+      </td>
+    );
+  };
+
+  const renderDateCell = (date) => {
+    const dateStr = toISODate(date);
+    const isToday = dateStr === todayStr;
+
+    if (!isToday) {
+      return <td className="date-col">{formatDateLabel(date)}</td>;
+    }
+
+    return (
+      <td className="date-col date-col-with-legend">
+        <div className="date-cell-inner">
+          <div className="date-label">{formatDateLabel(date)}</div>
+          <div className="date-legend">
+            <span className="date-legend-item date-legend-sales">продажи</span>
+            <span className="date-legend-item date-legend-qty">остаток</span>
+            <span className="date-legend-item date-legend-field">отгрузка</span>
+            <span className="date-legend-item date-legend-field">перем</span>
+            <span className="date-legend-item date-legend-field">возврат</span>
+          </div>
         </div>
       </td>
     );
@@ -541,7 +562,7 @@ function Dashboard() {
                     key={toISODate(date)}
                     className={isMonday(date) ? 'monday-row' : ''}
                   >
-                    <td className="date-col">{formatDateLabel(date)}</td>
+                    {renderDateCell(date)}
                     {userProducts.map((product) => renderUserCell(product, dateIndex))}
                   </tr>
                 ))}
