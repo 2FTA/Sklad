@@ -70,10 +70,11 @@
 
 .movement-invoice-title {
   text-align: center;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
   color: #1e293b;
-  margin: 0 0 0.25rem;
+  margin: 0 0 0.125rem;
+  line-height: 1;
 }
 
 .movement-invoice-date {
@@ -81,35 +82,47 @@
   font-size: 14px;
   font-weight: 600;
   color: #1e293b;
-  margin: 0 0 0.5rem;
+  margin: 0 0 0.25rem;
+  line-height: 1;
 }
 
 .movement-invoice-parties {
   display: flex;
   justify-content: flex-start;
   gap: 2.5rem;
-  margin-bottom: 0.5rem;
+  margin: 0 0 0.25rem;
   font-size: 0.875rem;
   color: #334155;
+  line-height: 1.2;
 }
 
 .movement-invoice-table-wrapper {
   overflow-x: auto;
-  margin-bottom: 0.5rem;
+  margin: 0;
+  padding: 0;
 }
 
 .movement-invoice-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: 12px;
+  line-height: 1;
   background: transparent;
+  border: 1px solid #000;
 }
 
 .movement-invoice-table th,
 .movement-invoice-table td {
-  border: 1px solid #cbd5e1;
-  padding: 0.25rem 0.5rem;
+  border: 1px solid #000;
+  padding: 2px 4px;
+  margin: 0;
   background: transparent;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.movement-invoice-table tr {
+  margin: 0;
 }
 
 .movement-invoice-table thead th {
@@ -132,15 +145,16 @@
 }
 
 .movement-invoice-signatures {
-  margin-top: 0.5rem;
+  margin: 0.25rem 0 0;
   font-size: 0.875rem;
   color: #334155;
+  line-height: 1.2;
 }
 
 .movement-signature-row {
   display: flex;
   align-items: center;
-  margin: 0.25rem 0;
+  margin: 0;
 }
 
 .movement-signature-row-total {
