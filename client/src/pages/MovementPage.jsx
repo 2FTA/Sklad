@@ -177,12 +177,12 @@ function MovementPage() {
               <p className="movement-invoice-date">{formatInvoiceDate(getToday())}</p>
 
               <div className="movement-invoice-parties">
-                <p>
+                <span>
                   <strong>От кого:</strong> {fromUser?.login || '—'}
-                </p>
-                <p>
+                </span>
+                <span>
                   <strong>Кому:</strong> {toUser?.login || '—'}
-                </p>
+                </span>
               </div>
 
               <div className="movement-invoice-table-wrapper">
@@ -212,15 +212,23 @@ function MovementPage() {
                       );
                     })}
                   </tbody>
-                  <tfoot>
-                    <tr>
-                      <td colSpan={5} className="movement-total-label">
-                        Разом:
-                      </td>
-                      <td className="movement-num movement-total-value">{totalSum}</td>
-                    </tr>
-                  </tfoot>
                 </table>
+              </div>
+
+              <div className="movement-invoice-signatures">
+                <div className="movement-signature-row movement-signature-row-total">
+                  <span className="movement-signature-line">
+                    Відпустив<span className="movement-signature-underline">__________</span>/{' '}
+                    {fromUser?.login || '—'}
+                  </span>
+                  <span className="movement-summary">Підсумок: {totalSum}</span>
+                </div>
+                <div className="movement-signature-row">
+                  <span className="movement-signature-line">
+                    Одержав<span className="movement-signature-underline">__________</span>/{' '}
+                    {toUser?.login || '—'}
+                  </span>
+                </div>
               </div>
             </div>
           )
