@@ -8,8 +8,95 @@ import './Dashboard.css';
 import './AdminPages.css';
 import './MovementPage.css';
 
+function toPositionKey(position) {
+  return `${position.kind}-${position.id}`;
+}
+
+function parsePositionKey(key) {
+  if (!key) return null;
+  const dashIndex = key.indexOf('-');
+  if (dashIndex === -1) return null;
+  return {
+    kind: key.slice(0, dashIndex),
+    id: parseInt(key.slice(dashIndex + 1), 10),
+  };
+}
+
+function AddPositionModal({ onClose, onAdd, loading, error }) {
+  const [name, setName] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onAdd(name);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>Добавить позицию</h3>
+        <form className="modal-form" onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Название</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              autoFocus
+            />
+          </div>
+          {error && <div className="modal-error">{error}</div>}
+          <div className="modal-actions">
+            <button type="button" className="btn-cancel" onClick={onClose} disabled={loading}>
+              Отмена
+            </button>
+            <button type="submit" className="btn-sm btn-update" disabled={loading}>
+              {loading ? 'Добавление...' : 'Добавить'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function DeletePositionModal({ positions, onClose, onDelete, loading, error }) {
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>Удалить позицию</h3>
+        {positions.length === 0 ? (
+          <p className="modal-text">Нет пользовательских позиций для удаления</p>
+        ) : (
+          <ul className="movement-delete-list">
+            {positions.map((position) => (
+              <li key={position.id} className="movement-delete-item">
+                <span>{position.name}</span>
+                <button
+                  type="button"
+                  className="btn-sm btn-delete"
+                  onClick={() => onDelete(position.id)}
+                  disabled={loading}
+                >
+                  Удалить
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {error && <div className="modal-error">{error}</div>}
+        <div className="modal-actions">
+          <button type="button" className="btn-cancel" onClick={onClose} disabled={loading}>
+            Закрыть
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MovementPage() {
   const [shopUsers, setShopUsers] = useState([]);
+  const [customPositions, setCustomPositions] = useState([]);
   const [shopsLoading, setShopsLoading] = useState(true);
   const [movementData, setMovementData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -18,31 +105,79 @@ function MovementPage() {
   const [fromUserId, setFromUserId] = useState('');
   const [toUserId, setToUserId] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [positionActionLoading, setPositionActionLoading] = useState(false);
+  const [positionActionError, setPositionActionError] = useState('');
   const tableRef = useRef(null);
+
+  const allPositions = useMemo(
+    () => [
+      ...shopUsers.map((user) => ({ kind: 'user', id: user.id, name: user.login })),
+      ...customPositions.map((position) => ({
+        kind: 'custom',
+        id: position.id,
+        name: position.name,
+      })),
+    ],
+    [shopUsers, customPositions]
+  );
 
   const loadShops = useCallback(async () => {
     try {
       const users = await api.getUsers();
-      const shops = users.filter((u) => u.role === 'user');
-      setShopUsers(shops);
-
-      setFromUserId((prev) =>
-        prev && shops.some((u) => String(u.id) === prev) ? prev : ''
-      );
-      setToUserId((prev) =>
-        prev && shops.some((u) => String(u.id) === prev) ? prev : ''
-      );
+      setShopUsers(users.filter((user) => user.role === 'user'));
     } catch (err) {
       setError(err.message);
-    } finally {
-      setShopsLoading(false);
     }
   }, []);
 
+  const loadCustomPositions = useCallback(async () => {
+    try {
+      const data = await api.getCustomPositions();
+      setCustomPositions(data);
+    } catch (err) {
+      setError(err.message);
+    }
+  }, []);
+
+  const loadInitialData = useCallback(async () => {
+    setShopsLoading(true);
+    try {
+      await Promise.all([loadShops(), loadCustomPositions()]);
+    } finally {
+      setShopsLoading(false);
+    }
+  }, [loadShops, loadCustomPositions]);
+
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
+
+  useEffect(() => {
+    setFromUserId((prev) =>
+      prev && allPositions.some((position) => toPositionKey(position) === prev) ? prev : ''
+    );
+    setToUserId((prev) =>
+      prev && allPositions.some((position) => toPositionKey(position) === prev) ? prev : ''
+    );
+  }, [allPositions]);
+
   const allSelected = Boolean(movementType && fromUserId && toUserId);
+
+  const getPositionName = useCallback(
+    (key) => allPositions.find((position) => toPositionKey(position) === key)?.name || '—',
+    [allPositions]
+  );
 
   const loadMovementData = useCallback(async () => {
     if (!movementType || !fromUserId || !toUserId) {
+      setMovementData([]);
+      return;
+    }
+
+    const fromParsed = parsePositionKey(fromUserId);
+    if (!fromParsed || fromParsed.kind !== 'user') {
       setMovementData([]);
       return;
     }
@@ -51,7 +186,7 @@ function MovementPage() {
     setError('');
 
     try {
-      const data = await api.getMovementData(Number(fromUserId), movementType);
+      const data = await api.getMovementData(fromParsed.id, movementType);
       setMovementData(data);
     } catch (err) {
       setError(err.message);
@@ -60,10 +195,6 @@ function MovementPage() {
       setLoading(false);
     }
   }, [movementType, fromUserId, toUserId]);
-
-  useEffect(() => {
-    loadShops();
-  }, [loadShops]);
 
   useEffect(() => {
     if (allSelected) {
@@ -76,7 +207,7 @@ function MovementPage() {
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        loadShops();
+        loadInitialData();
         if (allSelected) {
           loadMovementData();
         }
@@ -85,10 +216,7 @@ function MovementPage() {
 
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [loadShops, loadMovementData, allSelected]);
-
-  const fromUser = shopUsers.find((u) => String(u.id) === fromUserId);
-  const toUser = shopUsers.find((u) => String(u.id) === toUserId);
+  }, [loadInitialData, loadMovementData, allSelected]);
 
   const invoiceTitle = useMemo(() => {
     if (movementType === 'return') {
@@ -106,6 +234,41 @@ function MovementPage() {
   );
 
   const canExport = allSelected && !loading && movementData.length > 0 && !shopsLoading;
+
+  const handleAddPosition = async (name) => {
+    setPositionActionLoading(true);
+    setPositionActionError('');
+
+    try {
+      const created = await api.createCustomPosition(name);
+      setCustomPositions((prev) =>
+        [...prev, created].sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+      );
+      setShowAddModal(false);
+    } catch (err) {
+      setPositionActionError(err.message);
+    } finally {
+      setPositionActionLoading(false);
+    }
+  };
+
+  const handleDeletePosition = async (id) => {
+    setPositionActionLoading(true);
+    setPositionActionError('');
+
+    try {
+      await api.deleteCustomPosition(id);
+      setCustomPositions((prev) => prev.filter((position) => position.id !== id));
+
+      const deletedKey = `custom-${id}`;
+      setFromUserId((prev) => (prev === deletedKey ? '' : prev));
+      setToUserId((prev) => (prev === deletedKey ? '' : prev));
+    } catch (err) {
+      setPositionActionError(err.message);
+    } finally {
+      setPositionActionLoading(false);
+    }
+  };
 
   const handleExport = async () => {
     if (!tableRef.current) return;
@@ -178,22 +341,44 @@ function MovementPage() {
             </select>
           </div>
 
-          <div className="movement-filter">
+          <div className="movement-filter movement-filter-with-actions">
             <label htmlFor="movement-from">От кого</label>
-            <select
-              id="movement-from"
-              className="movement-select"
-              value={fromUserId}
-              onChange={(e) => setFromUserId(e.target.value)}
-              disabled={shopUsers.length === 0}
-            >
-              <option value="">—</option>
-              {shopUsers.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.login}
-                </option>
-              ))}
-            </select>
+            <div className="movement-select-row">
+              <select
+                id="movement-from"
+                className="movement-select"
+                value={fromUserId}
+                onChange={(e) => setFromUserId(e.target.value)}
+                disabled={allPositions.length === 0}
+              >
+                <option value="">—</option>
+                {allPositions.map((position) => (
+                  <option key={toPositionKey(position)} value={toPositionKey(position)}>
+                    {position.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="btn-sm btn-update movement-position-btn"
+                onClick={() => {
+                  setPositionActionError('');
+                  setShowAddModal(true);
+                }}
+              >
+                Добавить
+              </button>
+              <button
+                type="button"
+                className="btn-sm btn-delete movement-position-btn"
+                onClick={() => {
+                  setPositionActionError('');
+                  setShowDeleteModal(true);
+                }}
+              >
+                Удалить
+              </button>
+            </div>
           </div>
 
           <div className="movement-filter">
@@ -203,12 +388,12 @@ function MovementPage() {
               className="movement-select"
               value={toUserId}
               onChange={(e) => setToUserId(e.target.value)}
-              disabled={shopUsers.length === 0}
+              disabled={allPositions.length === 0}
             >
               <option value="">—</option>
-              {shopUsers.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.login}
+              {allPositions.map((position) => (
+                <option key={toPositionKey(position)} value={toPositionKey(position)}>
+                  {position.name}
                 </option>
               ))}
             </select>
@@ -244,10 +429,10 @@ function MovementPage() {
 
               <div className="movement-invoice-parties">
                 <span>
-                  <strong>От кого:</strong> {fromUser?.login || '—'}
+                  <strong>От кого:</strong> {getPositionName(fromUserId)}
                 </span>
                 <span>
-                  <strong>Кому:</strong> {toUser?.login || '—'}
+                  <strong>Кому:</strong> {getPositionName(toUserId)}
                 </span>
               </div>
 
@@ -285,14 +470,14 @@ function MovementPage() {
                 <div className="movement-signature-row movement-signature-row-total">
                   <span className="movement-signature-line">
                     Відпустив<span className="movement-signature-underline">__________</span>/{' '}
-                    {fromUser?.login || '—'}
+                    {getPositionName(fromUserId)}
                   </span>
                   <span className="movement-summary">Підсумок: {totalSum}</span>
                 </div>
                 <div className="movement-signature-row">
                   <span className="movement-signature-line">
                     Одержав<span className="movement-signature-underline">__________</span>/{' '}
-                    {toUser?.login || '—'}
+                    {getPositionName(toUserId)}
                   </span>
                 </div>
               </div>
@@ -302,6 +487,31 @@ function MovementPage() {
           <div className="empty-state">Выберите все параметры</div>
         )}
       </div>
+
+      {showAddModal && (
+        <AddPositionModal
+          onClose={() => {
+            setShowAddModal(false);
+            setPositionActionError('');
+          }}
+          onAdd={handleAddPosition}
+          loading={positionActionLoading}
+          error={positionActionError}
+        />
+      )}
+
+      {showDeleteModal && (
+        <DeletePositionModal
+          positions={customPositions}
+          onClose={() => {
+            setShowDeleteModal(false);
+            setPositionActionError('');
+          }}
+          onDelete={handleDeletePosition}
+          loading={positionActionLoading}
+          error={positionActionError}
+        />
+      )}
     </div>
   );
 }

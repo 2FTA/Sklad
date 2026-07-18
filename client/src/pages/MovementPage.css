@@ -61,6 +61,57 @@
   cursor: not-allowed;
 }
 
+.movement-filter-with-actions {
+  min-width: 0;
+}
+
+.movement-select-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.movement-select-row .movement-select {
+  flex: 1;
+  min-width: 160px;
+}
+
+.movement-position-btn {
+  white-space: nowrap;
+}
+
+.movement-delete-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.movement-delete-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.movement-delete-item:last-child {
+  border-bottom: none;
+}
+
+.modal-text {
+  color: #64748b;
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+}
+
+.modal-error {
+  color: #dc2626;
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
 .movement-invoice {
   max-width: 900px;
   margin: 0 auto;

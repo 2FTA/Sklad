@@ -158,6 +158,17 @@ export const api = {
 
   getMovementData: (userId, type) => request(`/movement/${userId}?type=${type}`),
 
+  getCustomPositions: () => request('/custom-positions'),
+
+  createCustomPosition: (name) =>
+    request('/custom-positions', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+
+  deleteCustomPosition: (id) =>
+    request(`/custom-positions/${id}`, { method: 'DELETE' }),
+
   deleteReportProduct: (reportId, productId, password) =>
     request(`/reports/${reportId}/products/${productId}`, {
       method: 'DELETE',

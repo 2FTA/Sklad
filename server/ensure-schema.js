@@ -57,6 +57,15 @@ async function ensureGlobalProductsSchema(pool) {
   `);
 }
 
+async function ensureCustomPositionsSchema(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS custom_positions (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) UNIQUE NOT NULL
+    )
+  `);
+}
+
 async function ensureReportsSchema(pool) {
   // Таблицы reports, report_products и report_stocks созданы в Supabase вручную.
   // Не создаём их здесь, чтобы не конфликтовать со схемой production.
@@ -67,6 +76,7 @@ async function ensureSchema(pool) {
   await ensureUsersSchema(pool);
   await ensureGlobalProductsSchema(pool);
   await ensureDailyStocksSchema(pool);
+  await ensureCustomPositionsSchema(pool);
   await ensureReportsSchema(pool);
 }
 
@@ -75,5 +85,6 @@ module.exports = {
   ensureUsersSchema,
   ensureGlobalProductsSchema,
   ensureDailyStocksSchema,
+  ensureCustomPositionsSchema,
   ensureReportsSchema,
 };
