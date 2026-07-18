@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import { api } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
-import { formatInvoiceDate, getToday } from '../utils/dates';
+import { formatInvoiceDate, getToday, toISODate } from '../utils/dates';
 import './Dashboard.css';
 import './AdminPages.css';
 import './MovementPage.css';
@@ -15,6 +17,8 @@ function MovementPage() {
   const [movementType, setMovementType] = useState('');
   const [fromUserId, setFromUserId] = useState('');
   const [toUserId, setToUserId] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const tableRef = useRef(null);
 
   const loadShops = useCallback(async () => {
     try {
@@ -101,6 +105,59 @@ function MovementPage() {
     0
   );
 
+  const canExport = allSelected && !loading && movementData.length > 0 && !shopsLoading;
+
+  const handleExport = async () => {
+    if (!tableRef.current) return;
+
+    setExporting(true);
+    setError('');
+
+    try {
+      const canvas = await html2canvas(tableRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('landscape', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      const leftMargin = 5;
+      const topMargin = 5;
+      const gap = 5;
+      const halfWidth = (pageWidth - leftMargin * 2 - gap) / 2;
+      const maxHeight = pageHeight - topMargin * 2;
+
+      const aspectRatio = canvas.width / canvas.height;
+      let scaledWidth = halfWidth;
+      let scaledHeight = scaledWidth / aspectRatio;
+
+      if (scaledHeight > maxHeight) {
+        scaledHeight = maxHeight;
+        scaledWidth = scaledHeight * aspectRatio;
+      }
+
+      pdf.addImage(imgData, 'PNG', leftMargin, topMargin, scaledWidth, scaledHeight);
+      pdf.addImage(
+        imgData,
+        'PNG',
+        leftMargin + halfWidth + gap,
+        topMargin,
+        scaledWidth,
+        scaledHeight
+      );
+
+      pdf.save(`Накладная_${toISODate(getToday())}.pdf`);
+    } catch (err) {
+      setError(err.message || 'Не удалось экспортировать PDF');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="page-layout">
       <AdminTopBar title="Движение" />
@@ -156,6 +213,15 @@ function MovementPage() {
               ))}
             </select>
           </div>
+
+          <button
+            type="button"
+            className="movement-export-btn"
+            onClick={handleExport}
+            disabled={!canExport || exporting}
+          >
+            {exporting ? 'Экспорт...' : 'Экспорт'}
+          </button>
         </div>
 
         {error && (
@@ -172,7 +238,7 @@ function MovementPage() {
           ) : movementData.length === 0 ? (
             <div className="empty-state">{emptyMessage}</div>
           ) : (
-            <div className="movement-invoice">
+            <div className="movement-invoice" ref={tableRef}>
               <h2 className="movement-invoice-title">{invoiceTitle}</h2>
               <p className="movement-invoice-date">{formatInvoiceDate(getToday())}</p>
 

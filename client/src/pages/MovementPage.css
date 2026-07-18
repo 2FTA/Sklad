@@ -7,6 +7,29 @@
   flex-shrink: 0;
 }
 
+.movement-export-btn {
+  margin-left: auto;
+  background: #22c55e;
+  color: #fff;
+  font-weight: 700;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.movement-export-btn:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+.movement-export-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .movement-filter {
   display: flex;
   flex-direction: column;
