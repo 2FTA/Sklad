@@ -163,3 +163,28 @@ export function getMonthLabel(monthValue) {
   const month = parseInt(monthStr, 10) - 1;
   return `${MONTH_NAMES[month]} ${year}`;
 }
+
+const MONTH_NAMES_GENITIVE = [
+  'января',
+  'февраля',
+  'марта',
+  'апреля',
+  'мая',
+  'июня',
+  'июля',
+  'августа',
+  'сентября',
+  'октября',
+  'ноября',
+  'декабря',
+];
+
+export function formatInvoiceDate(date = new Date()) {
+  const d = date instanceof Date ? date : new Date(date);
+  const day = d.getDate();
+  const month =
+    MONTH_NAMES_GENITIVE[d.getMonth()].charAt(0).toUpperCase() +
+    MONTH_NAMES_GENITIVE[d.getMonth()].slice(1);
+  const year = d.getFullYear();
+  return `від ${day} ${month} ${year} г`;
+}

@@ -38,11 +38,88 @@
   cursor: not-allowed;
 }
 
-.movement-table-placeholder {
+.movement-invoice {
+  max-width: 900px;
+  margin: 0 auto;
   background: #fff;
   border-radius: 10px;
   padding: 2rem;
-  text-align: center;
-  color: #64748b;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.movement-invoice-title {
+  text-align: center;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 0.75rem;
+  letter-spacing: 0.02em;
+}
+
+.movement-invoice-date {
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 1.5rem;
+}
+
+.movement-invoice-parties {
+  text-align: left;
+  margin-bottom: 1.25rem;
+}
+
+.movement-invoice-parties p {
+  margin: 0.35rem 0;
+  font-size: 0.95rem;
+  color: #334155;
+}
+
+.movement-invoice-table-wrapper {
+  overflow-x: auto;
+}
+
+.movement-invoice-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.movement-invoice-table th,
+.movement-invoice-table td {
+  border: 1px solid #cbd5e1;
+  padding: 0.55rem 0.75rem;
+}
+
+.movement-invoice-table thead th {
+  background: #f1f5f9;
+  font-weight: 600;
+  text-align: center;
+  color: #1e293b;
+}
+
+.movement-invoice-table tbody td {
+  color: #334155;
+}
+
+.movement-invoice-table .movement-name {
+  text-align: left;
+}
+
+.movement-invoice-table .movement-num {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.movement-invoice-table tfoot td {
+  background: #f8fafc;
+  font-weight: 600;
+}
+
+.movement-invoice-table .movement-total-label {
+  text-align: right;
+}
+
+.movement-invoice-table .movement-total-value {
+  font-weight: 700;
 }

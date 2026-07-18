@@ -1,17 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
+import { formatInvoiceDate, getToday } from '../utils/dates';
 import './Dashboard.css';
 import './AdminPages.css';
 import './MovementPage.css';
 
 function MovementPage() {
   const [shopUsers, setShopUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [shopsLoading, setShopsLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(false);
   const [error, setError] = useState('');
   const [movementType, setMovementType] = useState('');
   const [fromUserId, setFromUserId] = useState('');
   const [toUserId, setToUserId] = useState('');
+  const [items, setItems] = useState([]);
 
   const loadShops = useCallback(async () => {
     try {
@@ -28,26 +31,75 @@ function MovementPage() {
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setShopsLoading(false);
     }
   }, []);
+
+  const allSelected = Boolean(movementType && fromUserId && toUserId);
+
+  const loadMovementData = useCallback(async () => {
+    if (!movementType || !fromUserId) {
+      setItems([]);
+      return;
+    }
+
+    setDataLoading(true);
+    setError('');
+
+    try {
+      const data = await api.getMovementData(Number(fromUserId), movementType);
+      setItems(data);
+    } catch (err) {
+      setError(err.message);
+      setItems([]);
+    } finally {
+      setDataLoading(false);
+    }
+  }, [movementType, fromUserId]);
 
   useEffect(() => {
     loadShops();
   }, [loadShops]);
 
   useEffect(() => {
+    if (allSelected) {
+      loadMovementData();
+    } else {
+      setItems([]);
+    }
+  }, [allSelected, loadMovementData]);
+
+  useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
         loadShops();
+        if (allSelected) {
+          loadMovementData();
+        }
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [loadShops]);
+  }, [loadShops, loadMovementData, allSelected]);
 
-  const allSelected = movementType && fromUserId && toUserId;
+  const fromUser = shopUsers.find((u) => String(u.id) === fromUserId);
+  const toUser = shopUsers.find((u) => String(u.id) === toUserId);
+
+  const invoiceTitle = useMemo(() => {
+    if (movementType === 'return') {
+      return 'ВНУТРІШНЯ НАКЛАДНА НА ПОВЕРНЕННЯ';
+    }
+    return 'ВНУТРІШНЯ НАКЛАДНА НА ПЕРЕМІЩЕННЯ';
+  }, [movementType]);
+
+  const emptyMessage =
+    movementType === 'return' ? 'Возвратов нет' : 'Перемещений нет';
+
+  const totalSum = items.reduce(
+    (sum, item) => sum + (item.quantity || 0) * (item.price || 0),
+    0
+  );
 
   return (
     <div className="page-layout">
@@ -112,12 +164,66 @@ function MovementPage() {
           </div>
         )}
 
-        {loading ? (
+        {shopsLoading ? (
           <div className="loading">Загрузка...</div>
         ) : !allSelected ? (
           <div className="empty-state">Выберите все параметры</div>
+        ) : dataLoading ? (
+          <div className="loading">Загрузка...</div>
+        ) : items.length === 0 ? (
+          <div className="empty-state">{emptyMessage}</div>
         ) : (
-          <div className="movement-table-placeholder">Таблица появится здесь</div>
+          <div className="movement-invoice">
+            <h2 className="movement-invoice-title">{invoiceTitle}</h2>
+            <p className="movement-invoice-date">{formatInvoiceDate(getToday())}</p>
+
+            <div className="movement-invoice-parties">
+              <p>
+                <strong>От кого:</strong> {fromUser?.login || '—'}
+              </p>
+              <p>
+                <strong>Кому:</strong> {toUser?.login || '—'}
+              </p>
+            </div>
+
+            <div className="movement-invoice-table-wrapper">
+              <table className="movement-invoice-table">
+                <thead>
+                  <tr>
+                    <th>№ з/п</th>
+                    <th>Найменування</th>
+                    <th>Од. вим.</th>
+                    <th>Кількість</th>
+                    <th>Ціна</th>
+                    <th>Сума</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item, index) => {
+                    const sum = (item.quantity || 0) * (item.price || 0);
+                    return (
+                      <tr key={`${item.productName}-${index}`}>
+                        <td className="movement-num">{index + 1}</td>
+                        <td className="movement-name">{item.productName}</td>
+                        <td>{item.unit || '—'}</td>
+                        <td className="movement-num">{item.quantity}</td>
+                        <td className="movement-num">{item.price}</td>
+                        <td className="movement-num">{sum}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={5} className="movement-total-label">
+                      Разом:
+                    </td>
+                    <td className="movement-num movement-total-value">{totalSum}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
         )}
       </div>
     </div>

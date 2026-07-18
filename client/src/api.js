@@ -156,6 +156,8 @@ export const api = {
 
   getReport: (userId, month) => request(`/reports/${userId}/${month}`),
 
+  getMovementData: (userId, type) => request(`/movement/${userId}?type=${type}`),
+
   deleteReportProduct: (reportId, productId, password) =>
     request(`/reports/${reportId}/products/${productId}`, {
       method: 'DELETE',
