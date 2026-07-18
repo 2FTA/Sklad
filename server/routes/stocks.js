@@ -53,9 +53,8 @@ router.post('/', async (req, res) => {
 
     for (const item of stocks) {
       const productId = parseInt(item.productId, 10);
-      const quantity = parseInt(item.quantity, 10);
 
-      if (isNaN(productId) || isNaN(quantity) || quantity < 0) {
+      if (isNaN(productId)) {
         return res.status(400).json({ error: 'Некорректные данные остатков' });
       }
 
@@ -68,21 +67,55 @@ router.post('/', async (req, res) => {
         return res.status(404).json({ error: `Товар ${productId} не найден` });
       }
 
-      const result = await pool.query(
-        `INSERT INTO daily_stocks (product_id, user_id, date, quantity, shipments)
-         VALUES ($1, $2, $3::date, $4, 0)
-         ON CONFLICT (product_id, date)
-         DO UPDATE SET quantity = $4
-         RETURNING product_id AS "productId", date::text AS date, quantity, shipments`,
-        [productId, targetUserId, date, quantity]
-      );
+      const hasQuantity =
+        item.quantity !== undefined &&
+        item.quantity !== null &&
+        item.quantity !== '';
 
-      await pool.query(
-        'UPDATE products SET quantity = $1 WHERE id = $2',
-        [quantity, productId]
-      );
+      if (hasQuantity) {
+        const quantity = parseInt(item.quantity, 10);
 
-      saved.push(result.rows[0]);
+        if (isNaN(quantity) || quantity < 0) {
+          return res.status(400).json({ error: 'Некорректные данные остатков' });
+        }
+
+        const result = await pool.query(
+          `INSERT INTO daily_stocks (product_id, user_id, date, quantity, shipments, movement, "return")
+           VALUES ($1, $2, $3::date, $4, 0, 0, 0)
+           ON CONFLICT (product_id, date)
+           DO UPDATE SET quantity = $4
+           RETURNING product_id AS "productId", date::text AS date, quantity, shipments,
+                     movement, "return" AS "return"`,
+          [productId, targetUserId, date, quantity]
+        );
+
+        await pool.query(
+          'UPDATE products SET quantity = $1 WHERE id = $2',
+          [quantity, productId]
+        );
+
+        saved.push(result.rows[0]);
+      } else if (req.user.role === 'admin') {
+        const shipments = parseInt(item.shipments, 10) || 0;
+        const movement = parseInt(item.movement, 10) || 0;
+        const returnValue = parseInt(item.return, 10) || 0;
+
+        const result = await pool.query(
+          `INSERT INTO daily_stocks (product_id, user_id, date, quantity, shipments, movement, "return")
+           VALUES ($1, $2, $3::date, NULL, $4, $5, $6)
+           ON CONFLICT (product_id, date)
+           DO UPDATE SET shipments = $4, movement = $5, "return" = $6
+           RETURNING product_id AS "productId", date::text AS date, quantity, shipments,
+                     movement, "return" AS "return"`,
+          [productId, targetUserId, date, shipments, movement, returnValue]
+        );
+
+        saved.push(result.rows[0]);
+      } else {
+        return res.status(400).json({ error: 'Некорректные данные остатков' });
+      }
+
+      const savedRow = saved[saved.length - 1];
 
       try {
         await syncDailyStockToReport(
@@ -90,8 +123,8 @@ router.post('/', async (req, res) => {
           targetUserId,
           date,
           productId,
-          result.rows[0].quantity,
-          result.rows[0].shipments
+          savedRow.quantity,
+          savedRow.shipments
         );
       } catch (syncErr) {
         console.error('Ошибка синхронизации отчета:', syncErr);
@@ -146,7 +179,8 @@ router.get('/:userId', async (req, res) => {
 
     const result = await pool.query(
       `SELECT p.id AS "productId", gp.name AS "productName", gp.weight,
-              ds.date::text AS date, ds.quantity, ds.shipments
+              ds.date::text AS date, ds.quantity, ds.shipments,
+              ds.movement, ds."return" AS "return"
        FROM products p
        JOIN global_products gp ON p.global_product_id = gp.id
        LEFT JOIN daily_stocks ds ON ds.product_id = p.id
@@ -165,6 +199,8 @@ router.get('/:userId', async (req, res) => {
         date: row.date,
         quantity: row.quantity,
         shipments: row.shipments ?? 0,
+        movement: row.movement ?? 0,
+        return: row.return ?? 0,
       }));
 
     let storeTotal = 0;
@@ -217,12 +253,22 @@ router.put('/:userId/shipment', async (req, res) => {
     const shipmentValue = parseInt(shipments, 10);
 
     const result = await pool.query(
-      `INSERT INTO daily_stocks (product_id, user_id, date, quantity, shipments)
-       VALUES ($1, $2, $3::date, NULL, $4)
+      `INSERT INTO daily_stocks (product_id, user_id, date, quantity, shipments, movement, "return")
+       VALUES ($1, $2, $3::date, NULL, $4, COALESCE($5, 0), COALESCE($6, 0))
        ON CONFLICT (product_id, date)
-       DO UPDATE SET shipments = $4
-       RETURNING product_id AS "productId", date::text AS date, quantity, shipments`,
-      [parseInt(productId, 10), userId, date, shipmentValue]
+       DO UPDATE SET shipments = $4,
+                     movement = COALESCE($5, daily_stocks.movement),
+                     "return" = COALESCE($6, daily_stocks."return")
+       RETURNING product_id AS "productId", date::text AS date, quantity, shipments,
+                 movement, "return" AS "return"`,
+      [
+        parseInt(productId, 10),
+        userId,
+        date,
+        shipmentValue,
+        req.body.movement !== undefined ? parseInt(req.body.movement, 10) || 0 : null,
+        req.body.return !== undefined ? parseInt(req.body.return, 10) || 0 : null,
+      ]
     );
 
     const row = result.rows[0];
@@ -247,6 +293,8 @@ router.put('/:userId/shipment', async (req, res) => {
       date: row.date,
       quantity: row.quantity,
       shipments: row.shipments,
+      movement: row.movement ?? 0,
+      return: row.return ?? 0,
     });
   } catch (err) {
     console.error(err);

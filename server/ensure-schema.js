@@ -38,6 +38,14 @@ async function ensureDailyStocksSchema(pool) {
   `);
 
   await pool.query(`
+    ALTER TABLE daily_stocks ADD COLUMN IF NOT EXISTS movement INTEGER NOT NULL DEFAULT 0
+  `);
+
+  await pool.query(`
+    ALTER TABLE daily_stocks ADD COLUMN IF NOT EXISTS "return" INTEGER NOT NULL DEFAULT 0
+  `);
+
+  await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_stocks_product_date
     ON daily_stocks (product_id, date)
   `);

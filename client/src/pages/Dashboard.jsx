@@ -43,6 +43,8 @@ function Dashboard() {
   const [stocks, setStocks] = useState([]);
   const [storeTotal, setStoreTotal] = useState(0);
   const [shipmentInputs, setShipmentInputs] = useState({});
+  const [movementInputs, setMovementInputs] = useState({});
+  const [returnInputs, setReturnInputs] = useState({});
 
   const selectedUser = shopUsers.find((u) => u.id === activeView);
   const storeCapacity =
@@ -100,11 +102,20 @@ function Dashboard() {
       setStocks(stocksResponse.stocks || []);
       setStoreTotal(stocksResponse.storeTotal ?? 0);
 
-      const inputs = {};
+      const shipmentInit = {};
+      const movementInit = {};
+      const returnInit = {};
+
       for (const s of stocksResponse.stocks || []) {
-        inputs[`${s.productId}-${s.date}`] = s.shipments ?? 0;
+        const key = `${s.productId}-${s.date}`;
+        shipmentInit[key] = s.shipments ?? 0;
+        movementInit[key] = s.movement === 0 || s.movement == null ? '' : s.movement;
+        returnInit[key] = s.return === 0 || s.return == null ? '' : s.return;
       }
-      setShipmentInputs(inputs);
+
+      setShipmentInputs(shipmentInit);
+      setMovementInputs(movementInit);
+      setReturnInputs(returnInit);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -219,32 +230,69 @@ function Dashboard() {
     return cell?.shipments ?? 0;
   };
 
-  const handleShipmentChange = (productId, dateStr, value) => {
-    if (dateStr !== todayStr) return;
-
-    setShipmentInputs((prev) => ({
-      ...prev,
-      [`${productId}-${dateStr}`]: value,
-    }));
-  };
-
-  const handleShipmentSave = async (productId, dateStr) => {
+  const handleTodayFieldChange = (productId, dateStr, field, value) => {
     if (dateStr !== todayStr) return;
 
     const key = `${productId}-${dateStr}`;
-    const value = shipmentInputs[key];
+    const setters = {
+      shipments: setShipmentInputs,
+      movement: setMovementInputs,
+      return: setReturnInputs,
+    };
 
-    if (value === undefined || value === '') return;
+    setters[field]((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const mergeSavedStockRows = (savedRows) => {
+    if (!savedRows?.length) return;
+
+    setStocks((prev) => {
+      const next = [...prev];
+
+      for (const row of savedRows) {
+        const idx = next.findIndex(
+          (item) => item.productId === row.productId && item.date === row.date
+        );
+        const merged = {
+          productId: row.productId,
+          date: row.date,
+          quantity: row.quantity,
+          shipments: row.shipments ?? 0,
+          movement: row.movement ?? 0,
+          return: row.return ?? 0,
+        };
+
+        if (idx >= 0) {
+          next[idx] = { ...next[idx], ...merged };
+        } else {
+          next.push(merged);
+        }
+      }
+
+      return next;
+    });
+  };
+
+  const handleTodayStockSave = async (productId) => {
+    if (typeof activeView !== 'number') return;
+
+    const key = `${productId}-${todayStr}`;
 
     try {
-      await api.updateShipment(
-        activeView,
-        productId,
-        dateStr,
-        parseInt(value, 10) || 0
-      );
-      flash('Отгрузка сохранена');
-      await loadUserData();
+      const response = await api.saveStocks(activeView, todayStr, [
+        {
+          productId,
+          shipments: parseInt(shipmentInputs[key], 10) || 0,
+          movement: parseInt(movementInputs[key], 10) || 0,
+          return: parseInt(returnInputs[key], 10) || 0,
+        },
+      ]);
+
+      mergeSavedStockRows(response.saved);
+      flash('Данные сохранены');
     } catch (err) {
       setError(err.message);
     }
@@ -282,8 +330,20 @@ function Dashboard() {
       shipmentInputs[shipmentKey] !== undefined
         ? shipmentInputs[shipmentKey]
         : cell?.shipments ?? '';
+    const movementValue =
+      movementInputs[shipmentKey] !== undefined
+        ? movementInputs[shipmentKey]
+        : cell?.movement ?? '';
+    const returnValue =
+      returnInputs[shipmentKey] !== undefined
+        ? returnInputs[shipmentKey]
+        : cell?.return ?? '';
     const displayShipment =
       shipmentValue === '' || shipmentValue === undefined ? '—' : shipmentValue;
+    const movementNum = parseInt(cell?.movement ?? 0, 10) || 0;
+    const returnNum = parseInt(cell?.return ?? 0, 10) || 0;
+    const showPastMovement = !isToday && movementNum !== 0;
+    const showPastReturn = !isToday && returnNum !== 0;
 
     return (
       <td key={product.id} className="stock-cell">
@@ -297,18 +357,51 @@ function Dashboard() {
           )}
           <span className="stock-qty">{hasQuantity ? quantity : '—'}</span>
           {isToday ? (
-            <input
-              type="number"
-              className="stock-shipment-input"
-              min="0"
-              value={shipmentValue}
-              onChange={(e) =>
-                handleShipmentChange(product.id, dateStr, e.target.value)
-              }
-              onBlur={() => handleShipmentSave(product.id, dateStr)}
-            />
+            <>
+              <input
+                type="number"
+                className="stock-shipment-input"
+                min="0"
+                placeholder="отг"
+                value={shipmentValue}
+                onChange={(e) =>
+                  handleTodayFieldChange(product.id, dateStr, 'shipments', e.target.value)
+                }
+                onBlur={() => handleTodayStockSave(product.id)}
+              />
+              <input
+                type="number"
+                className="stock-shipment-input"
+                min="0"
+                placeholder="пер"
+                value={movementValue}
+                onChange={(e) =>
+                  handleTodayFieldChange(product.id, dateStr, 'movement', e.target.value)
+                }
+                onBlur={() => handleTodayStockSave(product.id)}
+              />
+              <input
+                type="number"
+                className="stock-shipment-input"
+                min="0"
+                placeholder="воз"
+                value={returnValue}
+                onChange={(e) =>
+                  handleTodayFieldChange(product.id, dateStr, 'return', e.target.value)
+                }
+                onBlur={() => handleTodayStockSave(product.id)}
+              />
+            </>
           ) : (
-            <span className="stock-shipment-readonly">{displayShipment}</span>
+            <>
+              <span className="stock-shipment-readonly">{displayShipment}</span>
+              {showPastMovement && (
+                <span className="stock-extra-readonly">{movementNum}</span>
+              )}
+              {showPastReturn && (
+                <span className="stock-extra-readonly">{returnNum}</span>
+              )}
+            </>
           )}
         </div>
       </td>

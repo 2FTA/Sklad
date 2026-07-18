@@ -78,6 +78,8 @@ export function buildStockMap(stocks) {
     map[`${s.productId}-${s.date}`] = {
       quantity: s.quantity,
       shipments: s.shipments ?? 0,
+      movement: s.movement ?? 0,
+      return: s.return ?? 0,
     };
   }
   return map;
