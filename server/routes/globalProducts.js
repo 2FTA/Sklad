@@ -24,7 +24,7 @@ const VALID_WEIGHTS = ['1л', '0.3'];
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT gp.id, gp.name, gp.order_index, gp.weight,
+      SELECT gp.id, gp.name, gp.order_index, gp.weight, gp.price,
              COALESCE(SUM(p.quantity), 0)::int AS total_quantity
       FROM global_products gp
       LEFT JOIN products p ON p.global_product_id = gp.id
@@ -68,8 +68,8 @@ router.post('/', async (req, res) => {
       const orderIndex = maxResult.rows[0].max_order + 1;
 
       const created = await client.query(
-        `INSERT INTO global_products (name, order_index, weight)
-         VALUES ($1, $2, '1л') RETURNING id, name, order_index, weight`,
+        `INSERT INTO global_products (name, order_index, weight, price)
+         VALUES ($1, $2, '1л', 0) RETURNING id, name, order_index, weight, price`,
         [trimmedName, orderIndex]
       );
 
@@ -130,7 +130,7 @@ router.put('/:id/order', async (req, res) => {
       await renumberAll(client);
 
       const result = await client.query(
-        'SELECT id, name, order_index, weight FROM global_products WHERE id = $1',
+        'SELECT id, name, order_index, weight, price FROM global_products WHERE id = $1',
         [id]
       );
 
@@ -151,10 +151,10 @@ router.put('/:id/order', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const { name, weight } = req.body;
+  const { name, weight, price } = req.body;
 
-  if (name === undefined && weight === undefined) {
-    return res.status(400).json({ error: 'Укажите название или литраж' });
+  if (name === undefined && weight === undefined && price === undefined) {
+    return res.status(400).json({ error: 'Укажите название, литраж или цену' });
   }
 
   try {
@@ -199,11 +199,21 @@ router.put('/:id', async (req, res) => {
       values.push(weight);
     }
 
+    if (price !== undefined) {
+      const priceNum = parseInt(price, 10);
+      if (isNaN(priceNum) || priceNum < 0 || priceNum > 9999) {
+        return res.status(400).json({ error: 'Цена должна быть числом от 0 до 9999' });
+      }
+
+      updates.push(`price = $${paramIndex++}`);
+      values.push(priceNum);
+    }
+
     values.push(id);
 
     const result = await pool.query(
       `UPDATE global_products SET ${updates.join(', ')}
-       WHERE id = $${paramIndex} RETURNING id, name, order_index, weight`,
+       WHERE id = $${paramIndex} RETURNING id, name, order_index, weight, price`,
       values
     );
 

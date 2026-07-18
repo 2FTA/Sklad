@@ -90,6 +90,12 @@ export const api = {
       body: JSON.stringify({ weight }),
     }),
 
+  updateGlobalProduct: (id, data) =>
+    request(`/global-products/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
   deleteGlobalProduct: (id) =>
     request(`/global-products/${id}`, { method: 'DELETE' }),
 

@@ -13,6 +13,7 @@ function ProductsManagement() {
   const [editName, setEditName] = useState('');
   const [newProductName, setNewProductName] = useState('');
   const [orderInputs, setOrderInputs] = useState({});
+  const [priceInputs, setPriceInputs] = useState({});
 
   const flash = (msg) => {
     setSuccess(msg);
@@ -25,10 +26,13 @@ function ProductsManagement() {
       const data = await api.getGlobalProducts();
       setProducts(data);
       const inputs = {};
+      const prices = {};
       data.forEach((p) => {
         inputs[p.id] = p.order_index;
+        prices[p.id] = p.price ?? 0;
       });
       setOrderInputs(inputs);
+      setPriceInputs(prices);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -104,9 +108,48 @@ function ProductsManagement() {
   };
 
   const handleWeightChange = async (productId, weight) => {
+    const product = products.find((p) => p.id === productId);
+    if (!product) return;
+
     try {
-      await api.updateGlobalProductWeight(productId, weight);
+      await api.updateGlobalProduct(productId, {
+        name: product.name,
+        weight,
+        price: product.price ?? 0,
+      });
       flash('Литраж обновлён');
+      await loadProducts();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handlePriceChange = (productId, value) => {
+    setPriceInputs({ ...priceInputs, [productId]: value });
+  };
+
+  const handlePriceSave = async (productId) => {
+    const raw = priceInputs[productId];
+    if (raw === undefined || raw === '') return;
+
+    const priceNum = parseInt(raw, 10);
+    if (isNaN(priceNum) || priceNum < 0 || priceNum > 9999) {
+      setError('Цена должна быть числом от 0 до 9999');
+      return;
+    }
+
+    const product = products.find((p) => p.id === productId);
+    if (!product) return;
+
+    if (priceNum === (product.price ?? 0)) return;
+
+    try {
+      await api.updateGlobalProduct(productId, {
+        name: product.name,
+        weight: product.weight || '1л',
+        price: priceNum,
+      });
+      flash('Цена обновлена');
       await loadProducts();
     } catch (err) {
       setError(err.message);
@@ -135,7 +178,9 @@ function ProductsManagement() {
               <thead>
                 <tr>
                   <th>Название</th>
+                  <th>Цена</th>
                   <th>Литраж</th>
+                  <th>Порядок</th>
                   <th>Общее количество</th>
                   <th>Действия</th>
                 </tr>
@@ -168,6 +213,18 @@ function ProductsManagement() {
                       )}
                     </td>
                     <td>
+                      <input
+                        type="number"
+                        className="price-input"
+                        min="0"
+                        max="9999"
+                        step="1"
+                        value={priceInputs[product.id] ?? product.price ?? 0}
+                        onChange={(e) => handlePriceChange(product.id, e.target.value)}
+                        onBlur={() => handlePriceSave(product.id)}
+                      />
+                    </td>
+                    <td>
                       <select
                         className="weight-select"
                         value={product.weight || '1л'}
@@ -177,18 +234,20 @@ function ProductsManagement() {
                         <option value="0.3">0.3</option>
                       </select>
                     </td>
+                    <td>
+                      <input
+                        type="number"
+                        className="order-input"
+                        min="1"
+                        title="Порядок"
+                        value={orderInputs[product.id] ?? product.order_index}
+                        onChange={(e) => handleOrderChange(product.id, e.target.value)}
+                        onBlur={() => handleOrderSave(product.id)}
+                      />
+                    </td>
                     <td className="quantity-cell">{product.total_quantity}</td>
                     <td>
                       <div className="actions-cell">
-                        <input
-                          type="number"
-                          className="order-input"
-                          min="1"
-                          title="Порядок"
-                          value={orderInputs[product.id] ?? product.order_index}
-                          onChange={(e) => handleOrderChange(product.id, e.target.value)}
-                          onBlur={() => handleOrderSave(product.id)}
-                        />
                         {editingId !== product.id && (
                           <button
                             className="btn-sm btn-rename"
