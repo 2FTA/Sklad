@@ -342,22 +342,24 @@ function Dashboard() {
       shipmentValue === '' || shipmentValue === undefined ? '—' : shipmentValue;
     const movementNum = parseInt(cell?.movement ?? 0, 10) || 0;
     const returnNum = parseInt(cell?.return ?? 0, 10) || 0;
-    const showPastMovement = !isToday && movementNum !== 0;
-    const showPastReturn = !isToday && returnNum !== 0;
 
     return (
       <td key={product.id} className="stock-cell">
         <div className="stock-cell-inner">
-          {sales !== null ? (
-            <span className={`stock-diff ${sales >= 0 ? 'positive' : 'negative'}`}>
-              {sales > 0 ? `+${sales}` : sales}
-            </span>
-          ) : (
-            <span className="stock-diff empty"> </span>
-          )}
-          <span className="stock-qty">{hasQuantity ? quantity : '—'}</span>
-          {isToday ? (
-            <>
+          <div className="stock-cell-row">
+            {sales !== null ? (
+              <span className={`stock-diff ${sales >= 0 ? 'positive' : 'negative'}`}>
+                {sales > 0 ? `+${sales}` : sales}
+              </span>
+            ) : (
+              <span className="stock-cell-placeholder">&nbsp;</span>
+            )}
+          </div>
+          <div className="stock-cell-row">
+            <span className="stock-qty">{hasQuantity ? quantity : '—'}</span>
+          </div>
+          <div className="stock-cell-row">
+            {isToday ? (
               <input
                 type="number"
                 className="stock-shipment-input"
@@ -368,9 +370,15 @@ function Dashboard() {
                 }
                 onBlur={() => handleTodayStockSave(product.id)}
               />
+            ) : (
+              <span className="stock-shipment-readonly">{displayShipment}</span>
+            )}
+          </div>
+          <div className="stock-cell-row">
+            {isToday ? (
               <input
                 type="number"
-                className="stock-shipment-input"
+                className="stock-shipment-input stock-movement-input"
                 min="0"
                 value={movementValue}
                 onChange={(e) =>
@@ -378,9 +386,17 @@ function Dashboard() {
                 }
                 onBlur={() => handleTodayStockSave(product.id)}
               />
+            ) : (
+              <span className="stock-movement-readonly">
+                {movementNum !== 0 ? movementNum : '\u00A0'}
+              </span>
+            )}
+          </div>
+          <div className="stock-cell-row">
+            {isToday ? (
               <input
                 type="number"
-                className="stock-shipment-input"
+                className="stock-shipment-input stock-return-input"
                 min="0"
                 value={returnValue}
                 onChange={(e) =>
@@ -388,18 +404,12 @@ function Dashboard() {
                 }
                 onBlur={() => handleTodayStockSave(product.id)}
               />
-            </>
-          ) : (
-            <>
-              <span className="stock-shipment-readonly">{displayShipment}</span>
-              {showPastMovement && (
-                <span className="stock-extra-readonly">{movementNum}</span>
-              )}
-              {showPastReturn && (
-                <span className="stock-extra-readonly">{returnNum}</span>
-              )}
-            </>
-          )}
+            ) : (
+              <span className="stock-return-readonly">
+                {returnNum !== 0 ? returnNum : '\u00A0'}
+              </span>
+            )}
+          </div>
         </div>
       </td>
     );
@@ -421,8 +431,8 @@ function Dashboard() {
             <span className="date-legend-item date-legend-sales">продажи</span>
             <span className="date-legend-item date-legend-qty">остаток</span>
             <span className="date-legend-item date-legend-field">отгрузка</span>
-            <span className="date-legend-item date-legend-field">перем</span>
-            <span className="date-legend-item date-legend-field">возврат</span>
+            <span className="date-legend-item date-legend-field date-legend-movement">перем</span>
+            <span className="date-legend-item date-legend-field date-legend-return">возврат</span>
           </div>
         </div>
       </td>

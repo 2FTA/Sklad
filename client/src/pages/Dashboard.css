@@ -595,32 +595,29 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.25rem;
+  gap: 0;
 }
 
 .date-legend-item {
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
   font-size: 0.75rem;
   line-height: 1;
   color: #1e293b;
 }
 
 .date-legend-sales {
-  min-height: 1rem;
   font-weight: 600;
   color: #16a34a;
 }
 
-.date-legend-qty {
-  min-height: 1.25rem;
-  display: flex;
-  align-items: center;
-  font-size: 0.75rem;
+.date-legend-movement {
+  color: #ff8c00;
 }
 
-.date-legend-field {
-  min-height: 1.75rem;
-  display: flex;
-  align-items: center;
+.date-legend-return {
+  color: #8b00ff;
 }
 
 .stock-grid-table tbody .date-col {
@@ -656,13 +653,26 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
+  justify-content: flex-start;
+  gap: 0;
+}
+
+.stock-cell-row {
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.stock-cell-placeholder {
+  display: inline-block;
+  min-width: 1px;
 }
 
 .stock-diff {
   font-size: 0.75rem;
   font-weight: 600;
-  min-height: 1rem;
   line-height: 1;
 }
 
@@ -672,10 +682,6 @@
 
 .stock-diff.negative {
   color: #16a34a;
-}
-
-.stock-diff.empty {
-  visibility: hidden;
 }
 
 .stock-qty {
@@ -708,12 +714,23 @@
   color: #64748b;
 }
 
-.stock-extra-readonly {
+.stock-movement-input,
+.stock-movement-readonly {
+  color: #ff8c00;
+  font-weight: 600;
+}
+
+.stock-return-input,
+.stock-return-readonly {
+  color: #8b00ff;
+  font-weight: 600;
+}
+
+.stock-movement-readonly,
+.stock-return-readonly {
   display: inline-block;
   min-width: 56px;
   padding: 0.15rem 0.4rem;
   text-align: center;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #64748b;
+  font-size: 0.85rem;
 }
