@@ -124,7 +124,9 @@ router.post('/', async (req, res) => {
           date,
           productId,
           savedRow.quantity,
-          savedRow.shipments
+          savedRow.shipments,
+          savedRow.movement,
+          savedRow.return
         );
       } catch (syncErr) {
         console.error('Ошибка синхронизации отчета:', syncErr);
@@ -281,7 +283,9 @@ router.put('/:userId/shipment', async (req, res) => {
         date,
         parseInt(productId, 10),
         row.quantity,
-        row.shipments
+        row.shipments,
+        row.movement,
+        row.return
       );
     } catch (syncErr) {
       console.error('Ошибка синхронизации отчета:', syncErr);

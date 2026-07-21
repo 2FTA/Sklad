@@ -79,7 +79,9 @@ router.get('/:userId/:month', async (req, res) => {
     );
 
     const stocksResult = await pool.query(
-      `SELECT rp.id AS "productId", rs.date::text AS date, rs.quantity, rs.shipments
+      `SELECT rp.id AS "productId", rs.date::text AS date, rs.quantity, rs.shipments,
+              COALESCE(rs.movement, 0) AS movement,
+              COALESCE(rs."return", 0) AS "return"
        FROM report_stocks rs
        JOIN report_products rp ON rp.id = rs.product_id
        WHERE rs.report_id = $1
@@ -96,6 +98,8 @@ router.get('/:userId/:month', async (req, res) => {
         date: row.date,
         quantity: row.quantity,
         shipments: row.shipments ?? 0,
+        movement: row.movement ?? 0,
+        return: row.return ?? 0,
       })),
     });
   } catch (err) {

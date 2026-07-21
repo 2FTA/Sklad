@@ -66,6 +66,16 @@ async function ensureCustomPositionsSchema(pool) {
   `);
 }
 
+async function ensureReportStocksSchema(pool) {
+  await pool.query(`
+    ALTER TABLE report_stocks ADD COLUMN IF NOT EXISTS movement INTEGER NOT NULL DEFAULT 0
+  `);
+
+  await pool.query(`
+    ALTER TABLE report_stocks ADD COLUMN IF NOT EXISTS "return" INTEGER NOT NULL DEFAULT 0
+  `);
+}
+
 async function ensureReportsSchema(pool) {
   // Таблицы reports, report_products и report_stocks созданы в Supabase вручную.
   // Не создаём их здесь, чтобы не конфликтовать со схемой production.
@@ -77,6 +87,7 @@ async function ensureSchema(pool) {
   await ensureGlobalProductsSchema(pool);
   await ensureDailyStocksSchema(pool);
   await ensureCustomPositionsSchema(pool);
+  await ensureReportStocksSchema(pool);
   await ensureReportsSchema(pool);
 }
 
@@ -86,5 +97,6 @@ module.exports = {
   ensureGlobalProductsSchema,
   ensureDailyStocksSchema,
   ensureCustomPositionsSchema,
+  ensureReportStocksSchema,
   ensureReportsSchema,
 };

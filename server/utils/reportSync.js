@@ -56,7 +56,16 @@ async function ensureReportProduct(db, reportId, userProductId) {
   return created.rows[0].id;
 }
 
-async function syncDailyStockToReport(db, userId, date, userProductId, quantity, shipments) {
+async function syncDailyStockToReport(
+  db,
+  userId,
+  date,
+  userProductId,
+  quantity,
+  shipments,
+  movement = 0,
+  returnValue = 0
+) {
   const user = await db.query('SELECT role FROM users WHERE id = $1', [userId]);
 
   if (user.rows.length === 0 || user.rows[0].role !== 'user') {
@@ -72,13 +81,15 @@ async function syncDailyStockToReport(db, userId, date, userProductId, quantity,
   }
 
   await db.query(
-    `INSERT INTO report_stocks (report_id, product_id, date, quantity, shipments)
-     VALUES ($1, $2, $3::date, $4, $5)
+    `INSERT INTO report_stocks (report_id, product_id, date, quantity, shipments, movement, "return")
+     VALUES ($1, $2, $3::date, $4, $5, $6, $7)
      ON CONFLICT (report_id, product_id, date)
      DO UPDATE SET
        quantity = EXCLUDED.quantity,
-       shipments = EXCLUDED.shipments`,
-    [reportId, reportProductId, date, quantity, shipments ?? 0]
+       shipments = EXCLUDED.shipments,
+       movement = EXCLUDED.movement,
+       "return" = EXCLUDED."return"`,
+    [reportId, reportProductId, date, quantity, shipments ?? 0, movement ?? 0, returnValue ?? 0]
   );
 }
 

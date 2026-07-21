@@ -158,12 +158,21 @@ function ReportsPage() {
     const cell = getCellData(productId, dateStr);
 
     if (!cell) {
-      return { sales: null, quantity: null, shipments: null, empty: true };
+      return {
+        sales: null,
+        quantity: null,
+        shipments: null,
+        movement: null,
+        returnValue: null,
+        hasData: false,
+      };
     }
 
     const quantity = cell.quantity;
     const hasQuantity = quantity !== null && quantity !== undefined;
     const shipments = cell.shipments ?? 0;
+    const movement = cell.movement ?? 0;
+    const returnValue = cell.return ?? 0;
 
     let sales = null;
     if (dateIndex < days.length - 1) {
@@ -171,7 +180,7 @@ function ReportsPage() {
       const nextQuantity = getCellData(productId, nextDateStr)?.quantity ?? null;
 
       if (hasQuantity && nextQuantity !== null && nextQuantity !== undefined) {
-        sales = quantity + shipments - nextQuantity;
+        sales = quantity + shipments - (nextQuantity + movement + returnValue);
       }
     }
 
@@ -179,7 +188,9 @@ function ReportsPage() {
       sales,
       quantity: hasQuantity ? quantity : null,
       shipments,
-      empty: false,
+      movement,
+      returnValue,
+      hasData: true,
     };
   };
 
@@ -192,17 +203,17 @@ function ReportsPage() {
       const row = [formatDayMonth(date)];
 
       for (const product of products) {
-        const { sales, quantity, shipments, empty } = getCellValues(product.id, dateIndex);
-
-        if (empty) {
-          row.push('');
-          continue;
-        }
+        const { sales, quantity, shipments, movement, returnValue } = getCellValues(
+          product.id,
+          dateIndex
+        );
 
         const salesText = sales !== null ? String(sales) : '';
-        const qtyText = quantity !== null ? String(quantity) : '—';
-        const shipText = String(shipments ?? 0);
-        row.push(`${salesText}\n${qtyText}\n${shipText}`);
+        const qtyText = quantity !== null ? String(quantity) : '';
+        const shipText = shipments !== null && shipments !== undefined ? String(shipments) : '';
+        const movementText = movement ? String(movement) : '';
+        const returnText = returnValue ? String(returnValue) : '';
+        row.push(`${salesText}\n${qtyText}\n${shipText}\n${movementText}\n${returnText}`);
       }
 
       return row;
@@ -221,28 +232,53 @@ function ReportsPage() {
   };
 
   const renderCell = (product, dateIndex) => {
-    const { sales, quantity, shipments, empty } = getCellValues(product.id, dateIndex);
+    const { sales, quantity, shipments, movement, returnValue, hasData } = getCellValues(
+      product.id,
+      dateIndex
+    );
 
-    if (empty) {
-      return (
-        <td key={product.id} className="stock-cell empty-cell">
-          —
-        </td>
-      );
-    }
+    const displayShipment = !hasData ? '\u00A0' : shipments;
 
     return (
       <td key={product.id} className="stock-cell">
         <div className="stock-cell-inner">
-          {sales !== null ? (
-            <span className={`stock-diff ${sales >= 0 ? 'positive' : 'negative'}`}>
-              {sales > 0 ? `+${sales}` : sales}
-            </span>
-          ) : (
-            <span className="stock-diff empty"> </span>
-          )}
-          <span className="stock-qty">{quantity !== null ? quantity : '—'}</span>
-          <span className="stock-shipment-readonly">{shipments}</span>
+          <div className="stock-cell-row">
+            {sales !== null ? (
+              <span className={`stock-diff ${sales >= 0 ? 'positive' : 'negative'}`}>
+                {sales > 0 ? `+${sales}` : sales}
+              </span>
+            ) : (
+              <span className="stock-cell-placeholder">&nbsp;</span>
+            )}
+          </div>
+          <div className="stock-cell-row">
+            {hasData && quantity !== null ? (
+              <span className="stock-qty">{quantity}</span>
+            ) : (
+              <span className="stock-cell-placeholder">&nbsp;</span>
+            )}
+          </div>
+          <div className="stock-cell-row">
+            {hasData ? (
+              <span className="stock-shipment-readonly">{displayShipment}</span>
+            ) : (
+              <span className="stock-cell-placeholder">&nbsp;</span>
+            )}
+          </div>
+          <div className="stock-cell-row">
+            {hasData && movement !== 0 ? (
+              <span className="stock-movement-readonly">{movement}</span>
+            ) : (
+              <span className="stock-cell-placeholder">&nbsp;</span>
+            )}
+          </div>
+          <div className="stock-cell-row">
+            {hasData && returnValue !== 0 ? (
+              <span className="stock-return-readonly">{returnValue}</span>
+            ) : (
+              <span className="stock-cell-placeholder">&nbsp;</span>
+            )}
+          </div>
         </div>
       </td>
     );
