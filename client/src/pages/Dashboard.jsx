@@ -230,6 +230,24 @@ function Dashboard() {
     return cell?.shipments ?? 0;
   };
 
+  const getMovement = (productId, dateStr) => {
+    const key = `${productId}-${dateStr}`;
+    const cell = getCellData(productId, dateStr);
+    if (movementInputs[key] !== undefined) {
+      return parseInt(movementInputs[key], 10) || 0;
+    }
+    return parseInt(cell?.movement ?? 0, 10) || 0;
+  };
+
+  const getReturn = (productId, dateStr) => {
+    const key = `${productId}-${dateStr}`;
+    const cell = getCellData(productId, dateStr);
+    if (returnInputs[key] !== undefined) {
+      return parseInt(returnInputs[key], 10) || 0;
+    }
+    return parseInt(cell?.return ?? 0, 10) || 0;
+  };
+
   const handleTodayFieldChange = (productId, dateStr, field, value) => {
     if (dateStr !== todayStr) return;
 
@@ -321,7 +339,12 @@ function Dashboard() {
 
       if (hasQuantity && nextQuantity !== null && nextQuantity !== undefined) {
         const currentShipments = getShipments(product.id, dateStr);
-        sales = quantity + currentShipments - nextQuantity;
+        const currentMovement = getMovement(product.id, dateStr);
+        const currentReturn = getReturn(product.id, dateStr);
+        sales =
+          quantity +
+          currentShipments -
+          (nextQuantity + currentMovement + currentReturn);
       }
     }
 
