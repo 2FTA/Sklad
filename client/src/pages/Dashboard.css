@@ -682,7 +682,7 @@
 }
 
 .stock-diff {
-  font-size: 0.75rem;
+  font-size: 1rem;
   font-weight: 600;
   line-height: 1;
 }
@@ -707,7 +707,8 @@
   border: 1px solid #cbd5e1;
   border-radius: 4px;
   text-align: center;
-  font-size: 0.85rem;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .stock-shipment-input:focus {
@@ -720,8 +721,8 @@
   min-width: 56px;
   padding: 0.3rem 0.4rem;
   text-align: center;
-  font-size: 0.85rem;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 600;
   color: #64748b;
 }
 
@@ -743,5 +744,5 @@
   min-width: 56px;
   padding: 0.15rem 0.4rem;
   text-align: center;
-  font-size: 0.85rem;
+  font-size: 1rem;
 }
