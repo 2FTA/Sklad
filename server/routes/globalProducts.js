@@ -24,7 +24,7 @@ const VALID_WEIGHTS = ['1л', '0.3'];
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT gp.id, gp.name, gp.order_index, gp.weight, gp.price,
+      SELECT gp.id, gp.name, gp.order_index, gp.weight, gp.price, gp.shelf_life,
              COALESCE(SUM(p.quantity), 0)::int AS total_quantity
       FROM global_products gp
       LEFT JOIN products p ON p.global_product_id = gp.id
@@ -39,13 +39,21 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { name } = req.body;
+  const { name, shelf_life: shelfLifeBody } = req.body;
 
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'Укажите название товара' });
   }
 
   const trimmedName = name.trim();
+  let shelfLife = 0;
+
+  if (shelfLifeBody !== undefined && shelfLifeBody !== null && shelfLifeBody !== '') {
+    shelfLife = parseInt(shelfLifeBody, 10);
+    if (isNaN(shelfLife) || shelfLife < 0) {
+      return res.status(400).json({ error: 'Срок хранения должен быть неотрицательным числом' });
+    }
+  }
 
   try {
     const existing = await pool.query(
@@ -68,9 +76,9 @@ router.post('/', async (req, res) => {
       const orderIndex = maxResult.rows[0].max_order + 1;
 
       const created = await client.query(
-        `INSERT INTO global_products (name, order_index, weight, price)
-         VALUES ($1, $2, '1л', 0) RETURNING id, name, order_index, weight, price`,
-        [trimmedName, orderIndex]
+        `INSERT INTO global_products (name, order_index, weight, price, shelf_life)
+         VALUES ($1, $2, '1л', 0, $3) RETURNING id, name, order_index, weight, price, shelf_life`,
+        [trimmedName, orderIndex, shelfLife]
       );
 
       const globalProduct = created.rows[0];
@@ -130,7 +138,7 @@ router.put('/:id/order', async (req, res) => {
       await renumberAll(client);
 
       const result = await client.query(
-        'SELECT id, name, order_index, weight, price FROM global_products WHERE id = $1',
+        'SELECT id, name, order_index, weight, price, shelf_life FROM global_products WHERE id = $1',
         [id]
       );
 
@@ -151,10 +159,15 @@ router.put('/:id/order', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const { name, weight, price } = req.body;
+  const { name, weight, price, shelf_life: shelfLifeBody } = req.body;
 
-  if (name === undefined && weight === undefined && price === undefined) {
-    return res.status(400).json({ error: 'Укажите название, литраж или цену' });
+  if (
+    name === undefined &&
+    weight === undefined &&
+    price === undefined &&
+    shelfLifeBody === undefined
+  ) {
+    return res.status(400).json({ error: 'Укажите название, литраж, цену или срок хранения' });
   }
 
   try {
@@ -209,11 +222,21 @@ router.put('/:id', async (req, res) => {
       values.push(priceNum);
     }
 
+    if (shelfLifeBody !== undefined) {
+      const shelfLifeNum = parseInt(shelfLifeBody, 10);
+      if (isNaN(shelfLifeNum) || shelfLifeNum < 0) {
+        return res.status(400).json({ error: 'Срок хранения должен быть неотрицательным числом' });
+      }
+
+      updates.push(`shelf_life = $${paramIndex++}`);
+      values.push(shelfLifeNum);
+    }
+
     values.push(id);
 
     const result = await pool.query(
       `UPDATE global_products SET ${updates.join(', ')}
-       WHERE id = $${paramIndex} RETURNING id, name, order_index, weight, price`,
+       WHERE id = $${paramIndex} RETURNING id, name, order_index, weight, price, shelf_life`,
       values
     );
 

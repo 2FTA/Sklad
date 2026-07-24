@@ -14,6 +14,7 @@ function ProductsManagement() {
   const [newProductName, setNewProductName] = useState('');
   const [orderInputs, setOrderInputs] = useState({});
   const [priceInputs, setPriceInputs] = useState({});
+  const [shelfLifeInputs, setShelfLifeInputs] = useState({});
 
   const flash = (msg) => {
     setSuccess(msg);
@@ -27,12 +28,15 @@ function ProductsManagement() {
       setProducts(data);
       const inputs = {};
       const prices = {};
+      const shelfLives = {};
       data.forEach((p) => {
         inputs[p.id] = p.order_index;
         prices[p.id] = p.price ?? 0;
+        shelfLives[p.id] = p.shelf_life ?? 0;
       });
       setOrderInputs(inputs);
       setPriceInputs(prices);
+      setShelfLifeInputs(shelfLives);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -116,6 +120,7 @@ function ProductsManagement() {
         name: product.name,
         weight,
         price: product.price ?? 0,
+        shelf_life: product.shelf_life ?? 0,
       });
       flash('Литраж обновлён');
       await loadProducts();
@@ -148,8 +153,42 @@ function ProductsManagement() {
         name: product.name,
         weight: product.weight || '1л',
         price: priceNum,
+        shelf_life: product.shelf_life ?? 0,
       });
       flash('Цена обновлена');
+      await loadProducts();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleShelfLifeChange = (productId, value) => {
+    setShelfLifeInputs({ ...shelfLifeInputs, [productId]: value });
+  };
+
+  const handleShelfLifeSave = async (productId) => {
+    const raw = shelfLifeInputs[productId];
+    if (raw === undefined || raw === '') return;
+
+    const shelfLifeNum = parseInt(raw, 10);
+    if (isNaN(shelfLifeNum) || shelfLifeNum < 0) {
+      setError('Срок хранения должен быть неотрицательным целым числом');
+      return;
+    }
+
+    const product = products.find((p) => p.id === productId);
+    if (!product) return;
+
+    if (shelfLifeNum === (product.shelf_life ?? 0)) return;
+
+    try {
+      await api.updateGlobalProduct(productId, {
+        name: product.name,
+        weight: product.weight || '1л',
+        price: product.price ?? 0,
+        shelf_life: shelfLifeNum,
+      });
+      flash('Срок хранения обновлён');
       await loadProducts();
     } catch (err) {
       setError(err.message);
@@ -178,6 +217,7 @@ function ProductsManagement() {
               <thead>
                 <tr>
                   <th>Название</th>
+                  <th>Срок хранения</th>
                   <th>Цена</th>
                   <th>Литраж</th>
                   <th>Порядок</th>
@@ -211,6 +251,17 @@ function ProductsManagement() {
                       ) : (
                         product.name
                       )}
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        className="shelf-life-input"
+                        min="0"
+                        step="1"
+                        value={shelfLifeInputs[product.id] ?? product.shelf_life ?? 0}
+                        onChange={(e) => handleShelfLifeChange(product.id, e.target.value)}
+                        onBlur={() => handleShelfLifeSave(product.id)}
+                      />
                     </td>
                     <td>
                       <input
