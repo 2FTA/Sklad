@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+// import html2canvas from 'html2canvas';
+// import jsPDF from 'jspdf';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 import { api } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
 import { formatInvoiceDate, getToday, toISODate } from '../utils/dates';
@@ -278,13 +280,59 @@ function MovementPage() {
     }
   };
 
-  const handleExport = async () => {
-    if (!tableRef.current) return;
+  const handleExport = () => {
+    if (movementData.length === 0) return;
 
     setExporting(true);
     setError('');
 
     try {
+      const today = toISODate(getToday());
+      const dataArray = [
+        [invoiceTitle],
+        [formatInvoiceDate(getToday())],
+        [],
+        [`От кого: ${getPositionName(fromUserId)}`, `Кому: ${getPositionName(toUserId)}`],
+        [],
+        ['№ з/п', 'Найменування', 'Од. вим.', 'Кількість', 'Ціна', 'Сума'],
+        ...movementData.map((item, index) => {
+          const sum = (item.quantity || 0) * (item.price || 0);
+          return [
+            index + 1,
+            item.productName,
+            item.unit || '—',
+            item.quantity,
+            item.price,
+            sum,
+          ];
+        }),
+        [],
+        [
+          `Відпустив__________/ ${getPositionName(fromUserId)}`,
+          '',
+          '',
+          '',
+          '',
+          `Підсумок: ${totalSum}`,
+        ],
+        [`Одержав__________/ ${getPositionName(toUserId)}`],
+      ];
+
+      const worksheet = XLSX.utils.aoa_to_sheet(dataArray);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Накладная');
+      const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      saveAs(
+        new Blob([wbout], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        }),
+        `Накладная_${today}.xlsx`
+      );
+
+      /*
+      // PDF export (legacy)
+      if (!tableRef.current) return;
+
       const canvas = await html2canvas(tableRef.current, {
         scale: 2,
         useCORS: true,
@@ -321,9 +369,10 @@ function MovementPage() {
         scaledHeight
       );
 
-      pdf.save(`Накладная_${toISODate(getToday())}.pdf`);
+      pdf.save(`Накладная_${today}.pdf`);
+      */
     } catch (err) {
-      setError(err.message || 'Не удалось экспортировать PDF');
+      setError(err.message || 'Не удалось экспортировать Excel');
     } finally {
       setExporting(false);
     }
