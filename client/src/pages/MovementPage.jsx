@@ -96,6 +96,129 @@ function DeletePositionModal({ positions, onClose, onDelete, loading, error }) {
   );
 }
 
+function buildInvoiceBlockRows(title, dateText, fromName, toName, items, totalSum) {
+  const rows = [];
+  rows.push([title, null, null, null, null, null]);
+  rows.push([dateText, null, null, null, null, null]);
+  rows.push([null, null, null, null, null, null]);
+  rows.push([`От кого: ${fromName}`, null, `Кому: ${toName}`, null, null, null]);
+  rows.push(['№ з/п', 'Найменування', 'Од. вим.', 'Кількість', 'Ціна', 'Сума']);
+
+  items.forEach((item, index) => {
+    const sum = (item.quantity || 0) * (item.price || 0);
+    rows.push([
+      index + 1,
+      item.productName,
+      item.unit || '—',
+      item.quantity,
+      item.price,
+      sum,
+    ]);
+  });
+
+  rows.push([
+    `Відпустив__________/ ${fromName}`,
+    null,
+    null,
+    null,
+    null,
+    `Підсумок: ${totalSum}`,
+  ]);
+  rows.push([`Одержав__________/ ${toName}`, null, null, null, null, null]);
+
+  return rows;
+}
+
+function combineDualInvoiceBlocks(leftRows, rightRows) {
+  const fullData = [];
+  const rowCount = Math.max(leftRows.length, rightRows.length);
+
+  for (let i = 0; i < rowCount; i++) {
+    const left = leftRows[i] || [null, null, null, null, null, null];
+    const right = rightRows[i] || [null, null, null, null, null, null];
+    fullData.push([null, ...left, null, null, ...right]);
+  }
+
+  return fullData;
+}
+
+const INVOICE_LEFT_START_COL = 1;
+const INVOICE_RIGHT_START_COL = 9;
+const INVOICE_BLOCK_WIDTH = 6;
+const INVOICE_HEADER_ROW = 4;
+
+function applyInvoiceSheetLayout(worksheet, rowCount) {
+  worksheet['!cols'] = [
+    { wch: 2 },
+    { wch: 8 },
+    { wch: 30 },
+    { wch: 10 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 15 },
+    { wch: 3 },
+    { wch: 2 },
+    { wch: 8 },
+    { wch: 30 },
+    { wch: 10 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 15 },
+  ];
+
+  const merges = [];
+  for (const startCol of [INVOICE_LEFT_START_COL, INVOICE_RIGHT_START_COL]) {
+    merges.push(
+      { s: { r: 0, c: startCol }, e: { r: 0, c: startCol + INVOICE_BLOCK_WIDTH - 1 } },
+      { s: { r: 1, c: startCol }, e: { r: 1, c: startCol + INVOICE_BLOCK_WIDTH - 1 } }
+    );
+  }
+  worksheet['!merges'] = merges;
+
+  const setCellStyle = (row, col, style) => {
+    const address = XLSX.utils.encode_cell({ r: row, c: col });
+    if (!worksheet[address]) return;
+    worksheet[address].s = { ...(worksheet[address].s || {}), ...style };
+  };
+
+  for (const startCol of [INVOICE_LEFT_START_COL, INVOICE_RIGHT_START_COL]) {
+    setCellStyle(0, startCol, {
+      font: { bold: true },
+      alignment: { horizontal: 'center', vertical: 'center' },
+    });
+    setCellStyle(1, startCol, {
+      font: { bold: true },
+      alignment: { horizontal: 'center', vertical: 'center' },
+    });
+
+    for (let colOffset = 0; colOffset < INVOICE_BLOCK_WIDTH; colOffset++) {
+      setCellStyle(INVOICE_HEADER_ROW, startCol + colOffset, {
+        font: { bold: true },
+        alignment: { horizontal: colOffset >= 3 ? 'right' : 'center' },
+      });
+    }
+
+    for (let row = INVOICE_HEADER_ROW + 1; row < rowCount - 2; row++) {
+      for (let colOffset = 3; colOffset < INVOICE_BLOCK_WIDTH; colOffset++) {
+        setCellStyle(row, startCol + colOffset, {
+          alignment: { horizontal: 'right' },
+        });
+      }
+    }
+
+    setCellStyle(rowCount - 2, startCol, {
+      alignment: { horizontal: 'left' },
+    });
+    setCellStyle(rowCount - 2, startCol + INVOICE_BLOCK_WIDTH - 1, {
+      font: { bold: true },
+      alignment: { horizontal: 'right' },
+    });
+    setCellStyle(rowCount - 1, startCol, {
+      alignment: { horizontal: 'left' },
+    });
+  }
+}
+
 function MovementPage() {
   const [shopUsers, setShopUsers] = useState([]);
   const [customPositions, setCustomPositions] = useState([]);
@@ -287,38 +410,24 @@ function MovementPage() {
     setError('');
 
     try {
-      const today = toISODate(getToday());
-      const dataArray = [
-        [invoiceTitle],
-        [formatInvoiceDate(getToday())],
-        [],
-        [`От кого: ${getPositionName(fromUserId)}`, `Кому: ${getPositionName(toUserId)}`],
-        [],
-        ['№ з/п', 'Найменування', 'Од. вим.', 'Кількість', 'Ціна', 'Сума'],
-        ...movementData.map((item, index) => {
-          const sum = (item.quantity || 0) * (item.price || 0);
-          return [
-            index + 1,
-            item.productName,
-            item.unit || '—',
-            item.quantity,
-            item.price,
-            sum,
-          ];
-        }),
-        [],
-        [
-          `Відпустив__________/ ${getPositionName(fromUserId)}`,
-          '',
-          '',
-          '',
-          '',
-          `Підсумок: ${totalSum}`,
-        ],
-        [`Одержав__________/ ${getPositionName(toUserId)}`],
-      ];
+      const todayDate = getToday();
+      const fileName = `Накладная_${String(todayDate.getDate()).padStart(2, '0')}.${String(todayDate.getMonth() + 1).padStart(2, '0')}.${todayDate.getFullYear()}.xlsx`;
+      const fromName = getPositionName(fromUserId);
+      const toName = getPositionName(toUserId);
+      const dateText = formatInvoiceDate(todayDate);
 
-      const worksheet = XLSX.utils.aoa_to_sheet(dataArray);
+      const blockRows = buildInvoiceBlockRows(
+        invoiceTitle,
+        dateText,
+        fromName,
+        toName,
+        movementData,
+        totalSum
+      );
+      const fullData = combineDualInvoiceBlocks(blockRows, blockRows);
+      const worksheet = XLSX.utils.aoa_to_sheet(fullData);
+      applyInvoiceSheetLayout(worksheet, fullData.length);
+
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Накладная');
       const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
@@ -326,7 +435,7 @@ function MovementPage() {
         new Blob([wbout], {
           type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         }),
-        `Накладная_${today}.xlsx`
+        fileName
       );
 
       /*
