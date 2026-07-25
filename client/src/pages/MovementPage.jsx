@@ -188,6 +188,37 @@ function fillInvoiceBlock(worksheet, startCol, title, dateText, fromName, toName
   receiverCell.alignment = { horizontal: 'left', vertical: 'middle' };
 }
 
+function applyInvoiceTableBorders(worksheet, startCol, itemCount) {
+  const startRow = INVOICE_TABLE_HEADER_ROW;
+  const endRow = INVOICE_TABLE_HEADER_ROW + itemCount;
+  const endCol = startCol + INVOICE_BLOCK_WIDTH - 1;
+
+  for (let row = startRow; row <= endRow; row++) {
+    for (let col = startCol; col <= endCol; col++) {
+      worksheet.getCell(row, col).border = INVOICE_THIN_BORDER;
+    }
+  }
+}
+
+function applyInvoicePrintSetup(worksheet, itemCount) {
+  worksheet.pageSetup.orientation = 'landscape';
+  worksheet.pageSetup.paperSize = 9;
+  worksheet.pageSetup.fitToPage = true;
+  worksheet.pageSetup.fitToWidth = 1;
+  worksheet.pageSetup.fitToHeight = 1;
+  worksheet.pageSetup.margins = {
+    left: 0.5,
+    right: 0.5,
+    top: 0.5,
+    bottom: 0.5,
+    header: 0.3,
+    footer: 0.3,
+  };
+
+  applyInvoiceTableBorders(worksheet, INVOICE_LEFT_START_COL, itemCount);
+  applyInvoiceTableBorders(worksheet, INVOICE_RIGHT_START_COL, itemCount);
+}
+
 function MovementPage() {
   const [shopUsers, setShopUsers] = useState([]);
   const [customPositions, setCustomPositions] = useState([]);
@@ -412,6 +443,8 @@ function MovementPage() {
         movementData,
         totalSum
       );
+
+      applyInvoicePrintSetup(worksheet, movementData.length);
 
       const buffer = await workbook.xlsx.writeBuffer();
       saveAs(
