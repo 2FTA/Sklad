@@ -296,7 +296,7 @@ function ProductsManagement() {
                         onBlur={() => handleOrderSave(product.id)}
                       />
                     </td>
-                    <td className="quantity-cell">{product.total_quantity}</td>
+                    <td className="quantity-cell">{product.total_quantity ?? 0}</td>
                     <td>
                       <div className="actions-cell">
                         {editingId !== product.id && (

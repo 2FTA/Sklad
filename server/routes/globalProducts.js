@@ -25,9 +25,11 @@ router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT gp.id, gp.name, gp.order_index, gp.weight, gp.price, gp.shelf_life,
-             COALESCE(SUM(p.quantity), 0)::int AS total_quantity
+             COALESCE(SUM(ds.quantity) FILTER (WHERE u.role = 'user'), 0)::int AS total_quantity
       FROM global_products gp
       LEFT JOIN products p ON p.global_product_id = gp.id
+      LEFT JOIN users u ON u.id = p.user_id AND u.role = 'user'
+      LEFT JOIN daily_stocks ds ON ds.product_id = p.id AND ds.date = CURRENT_DATE
       GROUP BY gp.id
       ORDER BY gp.order_index ASC
     `);
