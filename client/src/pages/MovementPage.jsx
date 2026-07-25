@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 // import html2canvas from 'html2canvas';
 // import jsPDF from 'jspdf';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { api } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
@@ -96,127 +96,96 @@ function DeletePositionModal({ positions, onClose, onDelete, loading, error }) {
   );
 }
 
-function buildInvoiceBlockRows(title, dateText, fromName, toName, items, totalSum) {
-  const rows = [];
-  rows.push([title, null, null, null, null, null]);
-  rows.push([dateText, null, null, null, null, null]);
-  rows.push([null, null, null, null, null, null]);
-  rows.push([`От кого: ${fromName}`, null, `Кому: ${toName}`, null, null, null]);
-  rows.push(['№ з/п', 'Найменування', 'Од. вим.', 'Кількість', 'Ціна', 'Сума']);
+const INVOICE_LEFT_START_COL = 2;
+const INVOICE_RIGHT_START_COL = 10;
+const INVOICE_BLOCK_WIDTH = 6;
+const INVOICE_TABLE_HEADER_ROW = 5;
 
+const INVOICE_COLUMN_WIDTHS = [3.75, 30, 10, 12, 12, 15];
+
+const INVOICE_THIN_BORDER = {
+  top: { style: 'thin', color: { argb: 'FF000000' } },
+  left: { style: 'thin', color: { argb: 'FF000000' } },
+  bottom: { style: 'thin', color: { argb: 'FF000000' } },
+  right: { style: 'thin', color: { argb: 'FF000000' } },
+};
+
+function fillInvoiceBlock(worksheet, startCol, title, dateText, fromName, toName, items, totalSum) {
+  INVOICE_COLUMN_WIDTHS.forEach((width, index) => {
+    worksheet.getColumn(startCol + index).width = width;
+  });
+
+  worksheet.mergeCells(1, startCol, 1, startCol + INVOICE_BLOCK_WIDTH - 1);
+  const titleCell = worksheet.getCell(1, startCol);
+  titleCell.value = title;
+  titleCell.font = { bold: true };
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+  worksheet.mergeCells(2, startCol, 2, startCol + INVOICE_BLOCK_WIDTH - 1);
+  const dateCell = worksheet.getCell(2, startCol);
+  dateCell.value = dateText;
+  dateCell.font = { bold: true };
+  dateCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+  const fromCell = worksheet.getCell(4, startCol);
+  fromCell.value = `От кого: ${fromName}`;
+  fromCell.font = { bold: true };
+
+  const toCell = worksheet.getCell(4, startCol + 2);
+  toCell.value = `Кому: ${toName}`;
+  toCell.font = { bold: true };
+
+  const headers = ['№ з/п', 'Найменування', 'Од. вим.', 'Кількість', 'Ціна', 'Сума'];
+  headers.forEach((header, index) => {
+    const cell = worksheet.getCell(INVOICE_TABLE_HEADER_ROW, startCol + index);
+    cell.value = header;
+    cell.font = { bold: true };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    cell.border = INVOICE_THIN_BORDER;
+  });
+
+  const dataStartRow = INVOICE_TABLE_HEADER_ROW + 1;
   items.forEach((item, index) => {
+    const rowNum = dataStartRow + index;
     const sum = (item.quantity || 0) * (item.price || 0);
-    rows.push([
+    const values = [
       index + 1,
       item.productName,
       item.unit || '—',
       item.quantity,
       item.price,
       sum,
-    ]);
+    ];
+
+    values.forEach((value, colIndex) => {
+      const cell = worksheet.getCell(rowNum, startCol + colIndex);
+      cell.value = value;
+      cell.border = INVOICE_THIN_BORDER;
+      if (colIndex >= 3) {
+        cell.alignment = { horizontal: 'right', vertical: 'middle' };
+      } else if (colIndex === 0) {
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      } else {
+        cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      }
+    });
   });
 
-  rows.push([
-    `Відпустив__________/ ${fromName}`,
-    null,
-    null,
-    null,
-    null,
-    `Підсумок: ${totalSum}`,
-  ]);
-  rows.push([`Одержав__________/ ${toName}`, null, null, null, null, null]);
+  const signatureRow = dataStartRow + items.length;
+  const signatureCell = worksheet.getCell(signatureRow, startCol);
+  signatureCell.value = `Відпустив__________/ ${fromName}`;
+  signatureCell.font = { bold: true };
+  signatureCell.alignment = { horizontal: 'left', vertical: 'middle' };
 
-  return rows;
-}
+  const totalCell = worksheet.getCell(signatureRow, startCol + INVOICE_BLOCK_WIDTH - 1);
+  totalCell.value = `Підсумок: ${totalSum}`;
+  totalCell.font = { bold: true };
+  totalCell.alignment = { horizontal: 'right', vertical: 'middle' };
 
-function combineDualInvoiceBlocks(leftRows, rightRows) {
-  const fullData = [];
-  const rowCount = Math.max(leftRows.length, rightRows.length);
-
-  for (let i = 0; i < rowCount; i++) {
-    const left = leftRows[i] || [null, null, null, null, null, null];
-    const right = rightRows[i] || [null, null, null, null, null, null];
-    fullData.push([null, ...left, null, null, ...right]);
-  }
-
-  return fullData;
-}
-
-const INVOICE_LEFT_START_COL = 1;
-const INVOICE_RIGHT_START_COL = 9;
-const INVOICE_BLOCK_WIDTH = 6;
-const INVOICE_HEADER_ROW = 4;
-
-function applyInvoiceSheetLayout(worksheet, rowCount) {
-  worksheet['!cols'] = [
-    { wch: 2 },
-    { wch: 8 },
-    { wch: 30 },
-    { wch: 10 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 15 },
-    { wch: 3 },
-    { wch: 2 },
-    { wch: 8 },
-    { wch: 30 },
-    { wch: 10 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 15 },
-  ];
-
-  const merges = [];
-  for (const startCol of [INVOICE_LEFT_START_COL, INVOICE_RIGHT_START_COL]) {
-    merges.push(
-      { s: { r: 0, c: startCol }, e: { r: 0, c: startCol + INVOICE_BLOCK_WIDTH - 1 } },
-      { s: { r: 1, c: startCol }, e: { r: 1, c: startCol + INVOICE_BLOCK_WIDTH - 1 } }
-    );
-  }
-  worksheet['!merges'] = merges;
-
-  const setCellStyle = (row, col, style) => {
-    const address = XLSX.utils.encode_cell({ r: row, c: col });
-    if (!worksheet[address]) return;
-    worksheet[address].s = { ...(worksheet[address].s || {}), ...style };
-  };
-
-  for (const startCol of [INVOICE_LEFT_START_COL, INVOICE_RIGHT_START_COL]) {
-    setCellStyle(0, startCol, {
-      font: { bold: true },
-      alignment: { horizontal: 'center', vertical: 'center' },
-    });
-    setCellStyle(1, startCol, {
-      font: { bold: true },
-      alignment: { horizontal: 'center', vertical: 'center' },
-    });
-
-    for (let colOffset = 0; colOffset < INVOICE_BLOCK_WIDTH; colOffset++) {
-      setCellStyle(INVOICE_HEADER_ROW, startCol + colOffset, {
-        font: { bold: true },
-        alignment: { horizontal: colOffset >= 3 ? 'right' : 'center' },
-      });
-    }
-
-    for (let row = INVOICE_HEADER_ROW + 1; row < rowCount - 2; row++) {
-      for (let colOffset = 3; colOffset < INVOICE_BLOCK_WIDTH; colOffset++) {
-        setCellStyle(row, startCol + colOffset, {
-          alignment: { horizontal: 'right' },
-        });
-      }
-    }
-
-    setCellStyle(rowCount - 2, startCol, {
-      alignment: { horizontal: 'left' },
-    });
-    setCellStyle(rowCount - 2, startCol + INVOICE_BLOCK_WIDTH - 1, {
-      font: { bold: true },
-      alignment: { horizontal: 'right' },
-    });
-    setCellStyle(rowCount - 1, startCol, {
-      alignment: { horizontal: 'left' },
-    });
-  }
+  const receiverCell = worksheet.getCell(signatureRow + 1, startCol);
+  receiverCell.value = `Одержав__________/ ${toName}`;
+  receiverCell.font = { bold: true };
+  receiverCell.alignment = { horizontal: 'left', vertical: 'middle' };
 }
 
 function MovementPage() {
@@ -403,7 +372,7 @@ function MovementPage() {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (movementData.length === 0) return;
 
     setExporting(true);
@@ -416,7 +385,16 @@ function MovementPage() {
       const toName = getPositionName(toUserId);
       const dateText = formatInvoiceDate(todayDate);
 
-      const blockRows = buildInvoiceBlockRows(
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Накладная');
+
+      worksheet.getColumn(1).width = 2;
+      worksheet.getColumn(8).width = 3;
+      worksheet.getColumn(9).width = 2;
+
+      fillInvoiceBlock(
+        worksheet,
+        INVOICE_LEFT_START_COL,
         invoiceTitle,
         dateText,
         fromName,
@@ -424,15 +402,20 @@ function MovementPage() {
         movementData,
         totalSum
       );
-      const fullData = combineDualInvoiceBlocks(blockRows, blockRows);
-      const worksheet = XLSX.utils.aoa_to_sheet(fullData);
-      applyInvoiceSheetLayout(worksheet, fullData.length);
+      fillInvoiceBlock(
+        worksheet,
+        INVOICE_RIGHT_START_COL,
+        invoiceTitle,
+        dateText,
+        fromName,
+        toName,
+        movementData,
+        totalSum
+      );
 
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Накладная');
-      const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const buffer = await workbook.xlsx.writeBuffer();
       saveAs(
-        new Blob([wbout], {
+        new Blob([buffer], {
           type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         }),
         fileName
