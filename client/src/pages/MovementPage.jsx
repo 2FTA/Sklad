@@ -98,10 +98,14 @@ function DeletePositionModal({ positions, onClose, onDelete, loading, error }) {
 
 const INVOICE_LEFT_START_COL = 2;
 const INVOICE_RIGHT_START_COL = 10;
+const INVOICE_SEPARATOR_COLS = [8, 9];
 const INVOICE_BLOCK_WIDTH = 6;
 const INVOICE_TABLE_HEADER_ROW = 5;
+const INVOICE_QTY_HEADER_COL_OFFSET = 3;
 
-const INVOICE_COLUMN_WIDTHS = [3.75, 30, 10, 12, 12, 15];
+const INVOICE_COLUMN_WIDTHS = [5, 18.75, 6.25, 4, 5.63, 8.13];
+const INVOICE_SEPARATOR_COL_WIDTH = 2;
+const INVOICE_MARGIN_COL_WIDTH = 2;
 
 const INVOICE_THIN_BORDER = {
   top: { style: 'thin', color: { argb: 'FF000000' } },
@@ -140,7 +144,11 @@ function fillInvoiceBlock(worksheet, startCol, title, dateText, fromName, toName
     const cell = worksheet.getCell(INVOICE_TABLE_HEADER_ROW, startCol + index);
     cell.value = header;
     cell.font = { bold: true };
-    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    cell.alignment = {
+      horizontal: 'center',
+      vertical: 'middle',
+      wrapText: index === INVOICE_QTY_HEADER_COL_OFFSET,
+    };
     cell.border = INVOICE_THIN_BORDER;
   });
 
@@ -190,7 +198,7 @@ function fillInvoiceBlock(worksheet, startCol, title, dateText, fromName, toName
 
 function applyInvoiceTableBorders(worksheet, startCol, itemCount) {
   const startRow = INVOICE_TABLE_HEADER_ROW;
-  const endRow = INVOICE_TABLE_HEADER_ROW + itemCount;
+  const endRow = itemCount > 0 ? INVOICE_TABLE_HEADER_ROW + itemCount : INVOICE_TABLE_HEADER_ROW;
   const endCol = startCol + INVOICE_BLOCK_WIDTH - 1;
 
   for (let row = startRow; row <= endRow; row++) {
@@ -201,19 +209,24 @@ function applyInvoiceTableBorders(worksheet, startCol, itemCount) {
 }
 
 function applyInvoicePrintSetup(worksheet, itemCount) {
+  const lastRow = INVOICE_TABLE_HEADER_ROW + itemCount + 2;
+
   worksheet.pageSetup.orientation = 'landscape';
   worksheet.pageSetup.paperSize = 9;
   worksheet.pageSetup.fitToPage = true;
   worksheet.pageSetup.fitToWidth = 1;
   worksheet.pageSetup.fitToHeight = 1;
+  worksheet.pageSetup.printArea = `A1:O${lastRow}`;
   worksheet.pageSetup.margins = {
     left: 0.5,
     right: 0.5,
     top: 0.5,
     bottom: 0.5,
-    header: 0.3,
-    footer: 0.3,
+    header: 0,
+    footer: 0,
   };
+
+  worksheet.getRow(INVOICE_TABLE_HEADER_ROW).height = 32;
 
   applyInvoiceTableBorders(worksheet, INVOICE_LEFT_START_COL, itemCount);
   applyInvoiceTableBorders(worksheet, INVOICE_RIGHT_START_COL, itemCount);
@@ -419,9 +432,10 @@ function MovementPage() {
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Накладная');
 
-      worksheet.getColumn(1).width = 2;
-      worksheet.getColumn(8).width = 3;
-      worksheet.getColumn(9).width = 2;
+      worksheet.getColumn(1).width = INVOICE_MARGIN_COL_WIDTH;
+      INVOICE_SEPARATOR_COLS.forEach((col) => {
+        worksheet.getColumn(col).width = INVOICE_SEPARATOR_COL_WIDTH;
+      });
 
       fillInvoiceBlock(
         worksheet,
