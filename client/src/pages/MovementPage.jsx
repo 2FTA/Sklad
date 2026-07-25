@@ -176,8 +176,10 @@ function MovementPage() {
       return;
     }
 
-    const fromParsed = parsePositionKey(fromUserId);
-    if (!fromParsed || fromParsed.kind !== 'user') {
+    const sourceKey = movementType === 'shipment' ? toUserId : fromUserId;
+    const sourceParsed = parsePositionKey(sourceKey);
+
+    if (!sourceParsed || sourceParsed.kind !== 'user') {
       setMovementData([]);
       return;
     }
@@ -186,7 +188,7 @@ function MovementPage() {
     setError('');
 
     try {
-      const data = await api.getMovementData(fromParsed.id, movementType);
+      const data = await api.getMovementData(sourceParsed.id, movementType);
       setMovementData(data);
     } catch (err) {
       setError(err.message);
@@ -222,11 +224,17 @@ function MovementPage() {
     if (movementType === 'return') {
       return 'ВНУТРІШНЯ НАКЛАДНА НА ПОВЕРНЕННЯ';
     }
+    if (movementType === 'shipment') {
+      return 'ВНУТРІШНЯ НАКЛАДНА НА ОТГРУЗКУ';
+    }
     return 'ВНУТРІШНЯ НАКЛАДНА НА ПЕРЕМІЩЕННЯ';
   }, [movementType]);
 
-  const emptyMessage =
-    movementType === 'return' ? 'Повернень немає' : 'Перемещений нет';
+  const emptyMessage = useMemo(() => {
+    if (movementType === 'return') return 'Повернень немає';
+    if (movementType === 'shipment') return 'Отгрузок нет';
+    return 'Перемещений нет';
+  }, [movementType]);
 
   const totalSum = movementData.reduce(
     (sum, item) => sum + (item.quantity || 0) * (item.price || 0),
@@ -338,6 +346,7 @@ function MovementPage() {
               <option value="">—</option>
               <option value="movement">Перемещение</option>
               <option value="return">Возврат</option>
+              <option value="shipment">Отгрузка</option>
             </select>
           </div>
 

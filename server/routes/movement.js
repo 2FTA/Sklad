@@ -14,11 +14,16 @@ router.get('/:userId', async (req, res) => {
     return res.status(400).json({ error: 'Некорректный ID пользователя' });
   }
 
-  if (type !== 'movement' && type !== 'return') {
-    return res.status(400).json({ error: 'Укажите type: movement или return' });
+  if (type !== 'movement' && type !== 'return' && type !== 'shipment') {
+    return res.status(400).json({ error: 'Укажите type: movement, return или shipment' });
   }
 
-  const quantityColumn = type === 'movement' ? 'ds.movement' : 'ds."return"';
+  const quantityColumn =
+    type === 'movement'
+      ? 'ds.movement'
+      : type === 'return'
+        ? 'ds."return"'
+        : 'ds.shipments';
 
   try {
     const result = await pool.query(
