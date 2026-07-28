@@ -103,15 +103,15 @@ const INVOICE_BLOCK_WIDTH = 6;
 const INVOICE_TABLE_HEADER_ROW = 5;
 const INVOICE_QTY_HEADER_COL_OFFSET = 3;
 
-const INVOICE_COLUMN_WIDTHS = [5, 18.75, 6.25, 4, 5.63, 8.13];
+const INVOICE_COLUMN_WIDTHS = [7, 21, 7, 6, 7, 10];
 const INVOICE_SEPARATOR_COL_WIDTH = 2;
 const INVOICE_MARGIN_COL_WIDTH = 2;
 
 const INVOICE_THIN_BORDER = {
-  top: { style: 'thin', color: { argb: 'FF000000' } },
-  left: { style: 'thin', color: { argb: 'FF000000' } },
-  bottom: { style: 'thin', color: { argb: 'FF000000' } },
-  right: { style: 'thin', color: { argb: 'FF000000' } },
+  top: { style: 'medium', color: { argb: 'FF000000' } },
+  left: { style: 'medium', color: { argb: 'FF000000' } },
+  bottom: { style: 'medium', color: { argb: 'FF000000' } },
+  right: { style: 'medium', color: { argb: 'FF000000' } },
 };
 
 function fillInvoiceBlock(worksheet, startCol, title, dateText, fromName, toName, items, totalSum) {
