@@ -41,7 +41,6 @@ function Dashboard() {
 
   const [userProducts, setUserProducts] = useState([]);
   const [stocks, setStocks] = useState([]);
-  const [storeTotal, setStoreTotal] = useState(0);
   const [shipmentInputs, setShipmentInputs] = useState({});
   const [movementInputs, setMovementInputs] = useState({});
   const [returnInputs, setReturnInputs] = useState({});
@@ -49,8 +48,37 @@ function Dashboard() {
   const selectedUser = shopUsers.find((u) => u.id === activeView);
   const storeCapacity =
     selectedUser?.role === 'user' ? (selectedUser.capacity ?? 1000) : null;
-  const freeSpace = storeCapacity !== null ? storeCapacity - storeTotal : null;
   const stockMap = useMemo(() => buildStockMap(stocks), [stocks]);
+
+  const productWeightMap = useMemo(() => {
+    const map = {};
+    for (const row of stocks) {
+      if (row.weight != null) {
+        map[row.productId] = row.weight;
+      }
+    }
+    return map;
+  }, [stocks]);
+
+  const storeTotal = useMemo(() => {
+    return userProducts.reduce((sum, product) => {
+      if (productWeightMap[product.id] !== '1л') {
+        return sum;
+      }
+
+      const key = `${product.id}-${todayStr}`;
+      const cell = stockMap[key];
+      const quantity = parseInt(cell?.quantity ?? 0, 10) || 0;
+      const shipments =
+        shipmentInputs[key] !== undefined
+          ? parseInt(shipmentInputs[key], 10) || 0
+          : parseInt(cell?.shipments ?? 0, 10) || 0;
+
+      return sum + quantity + shipments;
+    }, 0);
+  }, [userProducts, productWeightMap, stockMap, shipmentInputs, todayStr]);
+
+  const freeSpace = storeCapacity !== null ? storeCapacity - storeTotal : null;
 
   const loadUsers = useCallback(async () => {
     try {
@@ -100,7 +128,6 @@ function Dashboard() {
 
       setUserProducts(productsData);
       setStocks(stocksResponse.stocks || []);
-      setStoreTotal(stocksResponse.storeTotal ?? 0);
 
       const shipmentInit = {};
       const movementInit = {};
