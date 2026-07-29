@@ -538,23 +538,45 @@ function MovementPage() {
             </select>
           </div>
 
-          <div className="movement-filter movement-filter-with-actions">
+          <div className="movement-filter">
             <label htmlFor="movement-from">От кого</label>
+            <select
+              id="movement-from"
+              className="movement-select"
+              value={fromUserId}
+              onChange={(e) => setFromUserId(e.target.value)}
+              disabled={allPositions.length === 0}
+            >
+              <option value="">—</option>
+              {allPositions.map((position) => (
+                <option key={toPositionKey(position)} value={toPositionKey(position)}>
+                  {position.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="movement-filter">
+            <label htmlFor="movement-to">Кому</label>
+            <select
+              id="movement-to"
+              className="movement-select"
+              value={toUserId}
+              onChange={(e) => setToUserId(e.target.value)}
+              disabled={allPositions.length === 0}
+            >
+              <option value="">—</option>
+              {allPositions.map((position) => (
+                <option key={toPositionKey(position)} value={toPositionKey(position)}>
+                  {position.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="movement-filter movement-filter-with-actions">
+            <label aria-hidden="true">&nbsp;</label>
             <div className="movement-select-row">
-              <select
-                id="movement-from"
-                className="movement-select"
-                value={fromUserId}
-                onChange={(e) => setFromUserId(e.target.value)}
-                disabled={allPositions.length === 0}
-              >
-                <option value="">—</option>
-                {allPositions.map((position) => (
-                  <option key={toPositionKey(position)} value={toPositionKey(position)}>
-                    {position.name}
-                  </option>
-                ))}
-              </select>
               <button
                 type="button"
                 className="btn-sm btn-update movement-position-btn"
@@ -576,24 +598,6 @@ function MovementPage() {
                 Удалить
               </button>
             </div>
-          </div>
-
-          <div className="movement-filter">
-            <label htmlFor="movement-to">Кому</label>
-            <select
-              id="movement-to"
-              className="movement-select"
-              value={toUserId}
-              onChange={(e) => setToUserId(e.target.value)}
-              disabled={allPositions.length === 0}
-            >
-              <option value="">—</option>
-              {allPositions.map((position) => (
-                <option key={toPositionKey(position)} value={toPositionKey(position)}>
-                  {position.name}
-                </option>
-              ))}
-            </select>
           </div>
 
           <button
