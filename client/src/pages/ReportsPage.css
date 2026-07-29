@@ -7,6 +7,54 @@
   flex-shrink: 0;
 }
 
+.admin-content-area > .reports-toolbar {
+  flex-shrink: 0;
+}
+
+.reports-table-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.reports-scroll-container {
+  flex: 1;
+  min-height: 0;
+  max-width: 100%;
+  overflow-x: scroll;
+  overflow-y: auto;
+  border-radius: 10px;
+  scrollbar-width: thick;
+  scrollbar-color: #64748b #e2e8f0;
+}
+
+.reports-scroll-container::-webkit-scrollbar {
+  height: 20px;
+  width: 12px;
+}
+
+.reports-scroll-container::-webkit-scrollbar-track {
+  background: #e2e8f0;
+  border-radius: 0 0 10px 10px;
+}
+
+.reports-scroll-container::-webkit-scrollbar-thumb {
+  background: #64748b;
+  border-radius: 10px;
+  border: 3px solid #e2e8f0;
+}
+
+.reports-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+.reports-scroll-container .products-table-wrapper {
+  overflow: visible;
+  max-width: none;
+}
+
 .reports-select {
   padding: 0.55rem 0.75rem;
   border: 1px solid #cbd5e1;

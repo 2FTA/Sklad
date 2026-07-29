@@ -339,8 +339,8 @@ function ReportsPage() {
         ) : products.length === 0 ? (
           <div className="empty-state">В этом отчете нет товаров</div>
         ) : (
-          <div className="table-panel">
-            <div className="stock-scroll-container">
+          <div className="table-panel reports-table-panel">
+            <div className="stock-scroll-container reports-scroll-container">
               <div className="products-table-wrapper stock-grid-wrapper">
                 <table className="products-table reports-table">
                   <thead>
