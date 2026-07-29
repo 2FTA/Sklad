@@ -5,6 +5,14 @@ import { useToast } from '../components/ToastContext';
 import './Dashboard.css';
 import './AdminPages.css';
 
+function sortUsers(users) {
+  return [...users].sort((a, b) => {
+    if (a.role === 'admin' && b.role !== 'admin') return -1;
+    if (a.role !== 'admin' && b.role === 'admin') return 1;
+    return a.id - b.id;
+  });
+}
+
 function UsersManagement() {
   const { showToast } = useToast();
   const [users, setUsers] = useState([]);
@@ -23,9 +31,10 @@ function UsersManagement() {
     setLoading(true);
     try {
       const data = await api.getUsers();
-      setUsers(data);
+      const sortedUsers = sortUsers(data);
+      setUsers(sortedUsers);
       const inputs = {};
-      data.forEach((u) => {
+      sortedUsers.forEach((u) => {
         if (u.role === 'user') {
           inputs[u.id] = u.capacity ?? 1000;
         }
