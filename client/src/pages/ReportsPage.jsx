@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { api } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
+import { useToast } from '../components/ToastContext';
 import {
   getReportMonths,
   getDaysInMonth,
@@ -58,6 +59,7 @@ function DeleteProductModal({ productName, onConfirm, onClose, loading, error })
 }
 
 function ReportsPage() {
+  const { showToast } = useToast();
   const monthOptions = useMemo(() => getReportMonths(), []);
 
   const [shopUsers, setShopUsers] = useState([]);
@@ -68,7 +70,6 @@ function ReportsPage() {
   const [products, setProducts] = useState([]);
   const [stockMap, setStockMap] = useState({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState('');
@@ -89,16 +90,15 @@ function ReportsPage() {
         setSelectedUserId(String(shops[0].id));
       }
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
       setLoading(false);
     }
-  }, []);
+  }, [showToast]);
 
   const loadReport = useCallback(async () => {
     if (!selectedUserId || !selectedMonth) return;
 
     setLoading(true);
-    setError('');
 
     try {
       const data = await api.getReport(Number(selectedUserId), selectedMonth);
@@ -116,11 +116,11 @@ function ReportsPage() {
       setProducts(data.products.map((p) => ({ id: p.id, name: p.name })));
       setStockMap(buildStockMap(data.stocks || []));
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
-  }, [selectedUserId, selectedMonth]);
+  }, [selectedUserId, selectedMonth, showToast]);
 
   useEffect(() => {
     loadShops();
@@ -328,12 +328,6 @@ function ReportsPage() {
             Экспорт
           </button>
         </div>
-
-        {error && (
-          <div className="error-banner" onClick={() => setError('')}>
-            {error}
-          </div>
-        )}
 
         {loading ? (
           <div className="loading">Загрузка...</div>

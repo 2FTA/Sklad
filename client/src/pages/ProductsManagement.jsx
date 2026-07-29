@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
+import { useToast } from '../components/ToastContext';
 import './Dashboard.css';
 import './AdminPages.css';
 
 function ProductsManagement() {
+  const { showToast } = useToast();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
   const [newProductName, setNewProductName] = useState('');
@@ -17,8 +17,7 @@ function ProductsManagement() {
   const [shelfLifeInputs, setShelfLifeInputs] = useState({});
 
   const flash = (msg) => {
-    setSuccess(msg);
-    setTimeout(() => setSuccess(''), 3000);
+    showToast(msg, 'success');
   };
 
   const loadProducts = useCallback(async () => {
@@ -38,7 +37,7 @@ function ProductsManagement() {
       setPriceInputs(prices);
       setShelfLifeInputs(shelfLives);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -50,7 +49,7 @@ function ProductsManagement() {
 
   const handleRename = async (productId) => {
     if (!editName.trim()) {
-      setError('Введите название');
+      showToast('Введите название', 'error');
       return;
     }
 
@@ -60,7 +59,7 @@ function ProductsManagement() {
       flash('Название изменено у всех пользователей');
       await loadProducts();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   };
 
@@ -72,7 +71,7 @@ function ProductsManagement() {
       flash('Товар удалён у всех пользователей');
       await loadProducts();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   };
 
@@ -84,7 +83,7 @@ function ProductsManagement() {
       flash('Товар добавлен всем пользователям');
       await loadProducts();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   };
 
@@ -98,7 +97,7 @@ function ProductsManagement() {
 
     const orderIndex = parseInt(value, 10);
     if (isNaN(orderIndex) || orderIndex < 1) {
-      setError('Порядок должен быть числом больше 0');
+      showToast('Порядок должен быть числом больше 0', 'error');
       return;
     }
 
@@ -107,7 +106,7 @@ function ProductsManagement() {
       flash('Порядок обновлён');
       await loadProducts();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   };
 
@@ -125,7 +124,7 @@ function ProductsManagement() {
       flash('Литраж обновлён');
       await loadProducts();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   };
 
@@ -139,7 +138,7 @@ function ProductsManagement() {
 
     const priceNum = parseInt(raw, 10);
     if (isNaN(priceNum) || priceNum < 0 || priceNum > 9999) {
-      setError('Цена должна быть числом от 0 до 9999');
+      showToast('Цена должна быть числом от 0 до 9999', 'error');
       return;
     }
 
@@ -158,7 +157,7 @@ function ProductsManagement() {
       flash('Цена обновлена');
       await loadProducts();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   };
 
@@ -172,7 +171,7 @@ function ProductsManagement() {
 
     const shelfLifeNum = parseInt(raw, 10);
     if (isNaN(shelfLifeNum) || shelfLifeNum < 0) {
-      setError('Срок хранения должен быть неотрицательным целым числом');
+      showToast('Срок хранения должен быть неотрицательным целым числом', 'error');
       return;
     }
 
@@ -191,7 +190,7 @@ function ProductsManagement() {
       flash('Срок хранения обновлён');
       await loadProducts();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   };
 
@@ -200,13 +199,6 @@ function ProductsManagement() {
       <AdminTopBar title="Управление товарами" />
 
       <div className="content-area">
-        {error && (
-          <div className="error-banner" onClick={() => setError('')}>
-            {error}
-          </div>
-        )}
-        {success && <div className="success-banner">{success}</div>}
-
         {loading ? (
           <div className="loading">Загрузка...</div>
         ) : products.length === 0 ? (

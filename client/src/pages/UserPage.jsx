@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, clearAuth, getStoredUser } from '../api';
+import { useToast } from '../components/ToastContext';
 import { toISODate, formatDateFull, getToday, getTomorrowISO } from '../utils/dates';
 import './Dashboard.css';
 import './UserPage.css';
 
 function UserPage() {
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const currentUser = getStoredUser();
   const today = useMemo(() => getToday(), []);
@@ -16,8 +18,6 @@ function UserPage() {
   const [quantities, setQuantities] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -42,11 +42,11 @@ function UserPage() {
 
       setQuantities(inputs);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
-  }, [currentUser.id, todayStr]);
+  }, [currentUser.id, todayStr, showToast]);
 
   useEffect(() => {
     loadData();
@@ -60,7 +60,6 @@ function UserPage() {
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setError('');
 
     try {
       const stocks = products.map((p) => ({
@@ -69,11 +68,10 @@ function UserPage() {
       }));
 
       await api.saveStocks(currentUser.id, getTomorrowISO(), stocks);
-      setSuccess('Остатки сохранены');
-      setTimeout(() => setSuccess(''), 3000);
+      showToast('Остатки сохранены', 'success');
       await loadData();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -93,13 +91,6 @@ function UserPage() {
 
       <div className="content-area user-page-content">
         <div className="user-date-label">Дата: {todayLabel}</div>
-
-        {error && (
-          <div className="error-banner" onClick={() => setError('')}>
-            {error}
-          </div>
-        )}
-        {success && <div className="success-banner">{success}</div>}
 
         {loading ? (
           <div className="loading">Загрузка...</div>

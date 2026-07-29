@@ -5,6 +5,7 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { api } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
+import { useToast } from '../components/ToastContext';
 import { formatInvoiceDate, getToday, toISODate } from '../utils/dates';
 import './Dashboard.css';
 import './AdminPages.css';
@@ -233,12 +234,12 @@ function applyInvoicePrintSetup(worksheet, itemCount) {
 }
 
 function MovementPage() {
+  const { showToast } = useToast();
   const [shopUsers, setShopUsers] = useState([]);
   const [customPositions, setCustomPositions] = useState([]);
   const [shopsLoading, setShopsLoading] = useState(true);
   const [movementData, setMovementData] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [movementType, setMovementType] = useState('');
   const [fromUserId, setFromUserId] = useState('');
   const [toUserId, setToUserId] = useState('');
@@ -266,7 +267,7 @@ function MovementPage() {
       const users = await api.getUsers();
       setShopUsers(users.filter((user) => user.role === 'user'));
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   }, []);
 
@@ -275,7 +276,7 @@ function MovementPage() {
       const data = await api.getCustomPositions();
       setCustomPositions(data);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   }, []);
 
@@ -323,13 +324,12 @@ function MovementPage() {
     }
 
     setLoading(true);
-    setError('');
 
     try {
       const data = await api.getMovementData(sourceParsed.id, movementType);
       setMovementData(data);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
       setMovementData([]);
     } finally {
       setLoading(false);
@@ -420,7 +420,6 @@ function MovementPage() {
     if (movementData.length === 0) return;
 
     setExporting(true);
-    setError('');
 
     try {
       const todayDate = getToday();
@@ -511,7 +510,7 @@ function MovementPage() {
       pdf.save(`Накладная_${today}.pdf`);
       */
     } catch (err) {
-      setError(err.message || 'Не удалось экспортировать Excel');
+      showToast(err.message || 'Не удалось экспортировать Excel', 'error');
     } finally {
       setExporting(false);
     }
@@ -609,12 +608,6 @@ function MovementPage() {
             {exporting ? 'Экспорт...' : 'Экспорт'}
           </button>
         </div>
-
-        {error && (
-          <div className="error-banner" onClick={() => setError('')}>
-            {error}
-          </div>
-        )}
 
         {shopsLoading ? (
           <div className="loading">Загрузка...</div>

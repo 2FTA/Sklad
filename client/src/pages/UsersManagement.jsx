@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
+import { useToast } from '../components/ToastContext';
 import './Dashboard.css';
 import './AdminPages.css';
 
 function UsersManagement() {
+  const { showToast } = useToast();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const [editingPassword, setEditingPassword] = useState(null);
   const [newPassword, setNewPassword] = useState('');
@@ -16,8 +16,7 @@ function UsersManagement() {
   const [capacityInputs, setCapacityInputs] = useState({});
 
   const flash = (msg) => {
-    setSuccess(msg);
-    setTimeout(() => setSuccess(''), 3000);
+    showToast(msg, 'success');
   };
 
   const loadUsers = useCallback(async () => {
@@ -33,7 +32,7 @@ function UsersManagement() {
       });
       setCapacityInputs(inputs);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -55,13 +54,13 @@ function UsersManagement() {
       const data = await api.getUserPassword(user.id);
       setVisiblePasswords({ ...visiblePasswords, [user.id]: data.password });
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   };
 
   const handleChangePassword = async (userId) => {
     if (!newPassword.trim()) {
-      setError('Введите новый пароль');
+      showToast('Введите новый пароль', 'error');
       return;
     }
 
@@ -72,7 +71,7 @@ function UsersManagement() {
       setVisiblePasswords({ ...visiblePasswords, [userId]: newPassword });
       flash('Пароль изменён');
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   };
 
@@ -86,7 +85,7 @@ function UsersManagement() {
       setVisiblePasswords({});
       await loadUsers();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   };
 
@@ -98,7 +97,7 @@ function UsersManagement() {
       flash('Пользователь добавлен');
       await loadUsers();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   };
 
@@ -108,7 +107,7 @@ function UsersManagement() {
 
     const capacity = parseInt(value, 10);
     if (isNaN(capacity) || capacity < 0) {
-      setError('Вместимость должна быть числом ≥ 0');
+      showToast('Вместимость должна быть числом ≥ 0', 'error');
       return;
     }
 
@@ -117,7 +116,7 @@ function UsersManagement() {
       flash('Вместимость обновлена');
       await loadUsers();
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   };
 
@@ -126,13 +125,6 @@ function UsersManagement() {
       <AdminTopBar title="Управление пользователями" />
 
       <div className="content-area">
-        {error && (
-          <div className="error-banner" onClick={() => setError('')}>
-            {error}
-          </div>
-        )}
-        {success && <div className="success-banner">{success}</div>}
-
         {loading ? (
           <div className="loading">Загрузка...</div>
         ) : (

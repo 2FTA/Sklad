@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { api } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
+import { useToast } from '../components/ToastContext';
 import {
   getAdminStockDays,
   getToday,
@@ -16,6 +17,7 @@ import './Dashboard.css';
 import './AdminPages.css';
 
 function Dashboard() {
+  const { showToast } = useToast();
   const today = useMemo(() => getToday(), []);
   const todayStr = toISODate(today);
   const todayLabel = formatDateFull(today);
@@ -31,8 +33,6 @@ function Dashboard() {
   const [shopUsers, setShopUsers] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   const [globalProducts, setGlobalProducts] = useState([]);
   const [shipmentMap, setShipmentMap] = useState({});
@@ -88,7 +88,7 @@ function Dashboard() {
       const data = await api.getUsers();
       setShopUsers(data.filter((u) => u.role === 'user'));
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   }, []);
 
@@ -122,7 +122,7 @@ function Dashboard() {
       setWarehouseInputs(warehouseInit);
       setMotorInputs(motorInit);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -161,7 +161,7 @@ function Dashboard() {
       setMovementInputs(movementInit);
       setReturnInputs(returnInit);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -187,13 +187,10 @@ function Dashboard() {
   const handleSelectView = (view) => {
     setActiveView(view);
     setSidebarOpen(false);
-    setError('');
-    setSuccess('');
   };
 
   const flash = (msg) => {
-    setSuccess(msg);
-    setTimeout(() => setSuccess(''), 3000);
+    showToast(msg, 'success');
   };
 
   const getSummaryShipment = (userId, globalProductId) => {
@@ -231,7 +228,7 @@ function Dashboard() {
         },
       ]);
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   };
 
@@ -383,7 +380,7 @@ function Dashboard() {
       mergeSavedStockRows(response.saved);
       flash('Данные сохранены');
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     }
   };
 
@@ -420,7 +417,7 @@ function Dashboard() {
       } else {
         quantity = parseInt(edited, 10);
         if (isNaN(quantity) || quantity < 0) {
-          setError('Некорректное значение остатка');
+          showToast('Некорректное значение остатка', 'error');
           return;
         }
       }
@@ -446,7 +443,7 @@ function Dashboard() {
       setEditedRemainders({});
       flash('Остатки сохранены');
     } catch (err) {
-      setError(err.message);
+      showToast(err.message, 'error');
     } finally {
       setSavingRemainders(false);
     }
@@ -824,13 +821,6 @@ function Dashboard() {
         />
 
         <div className="content-area admin-content-area">
-          {error && (
-            <div className="error-banner" onClick={() => setError('')}>
-              {error}
-            </div>
-          )}
-          {success && <div className="success-banner">{success}</div>}
-
           {loading ? (
             <div className="loading">Загрузка...</div>
           ) : activeView === 'summary' ? (

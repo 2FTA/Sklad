@@ -7,6 +7,7 @@ import ProductsManagement from './pages/ProductsManagement';
 import ReportsPage from './pages/ReportsPage';
 import MovementPage from './pages/MovementPage';
 import AdminRoute from './components/AdminRoute';
+import { ToastProvider } from './components/ToastContext';
 import { getStoredUser } from './api';
 
 function PrivateRoute({ children }) {
@@ -21,7 +22,8 @@ function Home() {
 
 function App() {
   return (
-    <Routes>
+    <ToastProvider>
+      <Routes>
       <Route path="/login" element={<Login />} />
       <Route
         path="/"
@@ -64,7 +66,8 @@ function App() {
         }
       />
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      </Routes>
+    </ToastProvider>
   );
 }
 
