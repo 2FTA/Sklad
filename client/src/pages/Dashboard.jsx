@@ -92,9 +92,10 @@ function Dashboard() {
   const loadSummaryData = useCallback(async () => {
     setLoading(true);
     try {
-      const [productsData, shipmentsData] = await Promise.all([
+      const [productsData, shipmentsData, summaryData] = await Promise.all([
         api.getGlobalProducts(),
         api.getTodayShipments(todayStr),
+        api.getSummary(todayStr),
       ]);
 
       setGlobalProducts(productsData);
@@ -104,6 +105,19 @@ function Dashboard() {
         map[`${row.userId}-${row.globalProductId}`] = row.shipments ?? 0;
       }
       setShipmentMap(map);
+
+      const warehouseInit = {};
+      const motorInit = {};
+      for (const row of summaryData || []) {
+        if (row.warehouse !== null && row.warehouse !== undefined) {
+          warehouseInit[row.productId] = row.warehouse;
+        }
+        if (row.warehouseMotornaya !== null && row.warehouseMotornaya !== undefined) {
+          motorInit[row.productId] = row.warehouseMotornaya;
+        }
+      }
+      setWarehouseInputs(warehouseInit);
+      setMotorInputs(motorInit);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -189,6 +203,28 @@ function Dashboard() {
     if (value === '' || value === undefined || value === null) return null;
     const num = parseInt(value, 10);
     return isNaN(num) ? null : num;
+  };
+
+  const handleSummarySave = async (productId, fieldValues = {}) => {
+    try {
+      await api.saveSummary(todayStr, [
+        {
+          productId,
+          warehouse: parseInput(
+            fieldValues.warehouse !== undefined
+              ? fieldValues.warehouse
+              : warehouseInputs[productId]
+          ),
+          warehouseMotornaya: parseInput(
+            fieldValues.warehouseMotornaya !== undefined
+              ? fieldValues.warehouseMotornaya
+              : motorInputs[productId]
+          ),
+        },
+      ]);
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const getRowCalcs = (globalProductId) => {
@@ -539,10 +575,13 @@ function Dashboard() {
                         className="summary-input"
                         value={warehouseInputs[product.id] ?? ''}
                         onChange={(e) =>
-                          setWarehouseInputs({
-                            ...warehouseInputs,
+                          setWarehouseInputs((prev) => ({
+                            ...prev,
                             [product.id]: e.target.value,
-                          })
+                          }))
+                        }
+                        onBlur={(e) =>
+                          handleSummarySave(product.id, { warehouse: e.target.value })
                         }
                       />
                     </td>
@@ -555,10 +594,13 @@ function Dashboard() {
                         className="summary-input"
                         value={motorInputs[product.id] ?? ''}
                         onChange={(e) =>
-                          setMotorInputs({
-                            ...motorInputs,
+                          setMotorInputs((prev) => ({
+                            ...prev,
                             [product.id]: e.target.value,
-                          })
+                          }))
+                        }
+                        onBlur={(e) =>
+                          handleSummarySave(product.id, { warehouseMotornaya: e.target.value })
                         }
                       />
                     </td>

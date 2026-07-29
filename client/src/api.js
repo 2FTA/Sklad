@@ -152,6 +152,14 @@ export const api = {
     return request(`/stocks/today${params}`);
   },
 
+  getSummary: (date) => request(`/summary/${date}`),
+
+  saveSummary: (date, items) =>
+    request('/summary', {
+      method: 'POST',
+      body: JSON.stringify({ date, items }),
+    }),
+
   getReports: () => request('/reports'),
 
   getReport: (userId, month) => request(`/reports/${userId}/${month}`),
