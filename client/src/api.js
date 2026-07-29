@@ -147,6 +147,12 @@ export const api = {
       body: JSON.stringify({ userId, date, stocks }),
     }),
 
+  updateStockQuantities: (userId, date, items) =>
+    request('/stocks/quantity', {
+      method: 'PUT',
+      body: JSON.stringify({ userId, date, items }),
+    }),
+
   getTodayShipments: (date) => {
     const params = date ? `?date=${date}` : '';
     return request(`/stocks/today${params}`);

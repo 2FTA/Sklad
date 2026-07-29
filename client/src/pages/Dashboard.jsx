@@ -44,6 +44,9 @@ function Dashboard() {
   const [shipmentInputs, setShipmentInputs] = useState({});
   const [movementInputs, setMovementInputs] = useState({});
   const [returnInputs, setReturnInputs] = useState({});
+  const [isEditingRemainder, setIsEditingRemainder] = useState(false);
+  const [editedRemainders, setEditedRemainders] = useState({});
+  const [savingRemainders, setSavingRemainders] = useState(false);
 
   const selectedUser = shopUsers.find((u) => u.id === activeView);
   const storeCapacity =
@@ -175,6 +178,11 @@ function Dashboard() {
       loadUserData();
     }
   }, [activeView, loadSummaryData, loadUserData]);
+
+  useEffect(() => {
+    setIsEditingRemainder(false);
+    setEditedRemainders({});
+  }, [activeView]);
 
   const handleSelectView = (view) => {
     setActiveView(view);
@@ -379,6 +387,71 @@ function Dashboard() {
     }
   };
 
+  const getTodayQuantity = (productId) => {
+    const cell = getCellData(productId, todayStr);
+    return cell?.quantity ?? null;
+  };
+
+  const handleRemainderEditToggle = () => {
+    if (isEditingRemainder) {
+      handleSaveRemainders();
+      return;
+    }
+
+    setEditedRemainders({});
+    setIsEditingRemainder(true);
+  };
+
+  const handleSaveRemainders = async () => {
+    if (typeof activeView !== 'number') return;
+
+    const items = [];
+
+    for (const product of userProducts) {
+      const original = getTodayQuantity(product.id);
+      const edited = editedRemainders[product.id];
+      let quantity;
+
+      if (edited === undefined || edited === '') {
+        if (original === null || original === undefined) {
+          continue;
+        }
+        quantity = parseInt(original, 10);
+      } else {
+        quantity = parseInt(edited, 10);
+        if (isNaN(quantity) || quantity < 0) {
+          setError('Некорректное значение остатка');
+          return;
+        }
+      }
+
+      if (isNaN(quantity)) {
+        continue;
+      }
+
+      items.push({ productId: product.id, quantity });
+    }
+
+    if (items.length === 0) {
+      setIsEditingRemainder(false);
+      setEditedRemainders({});
+      return;
+    }
+
+    setSavingRemainders(true);
+    try {
+      const response = await api.updateStockQuantities(activeView, todayStr, items);
+      mergeSavedStockRows(response.saved);
+      setIsEditingRemainder(false);
+      setEditedRemainders({});
+      flash('Остатки сохранены');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingRemainders(false);
+    }
+  };
+
   const renderUserCell = (product, dateIndex) => {
     const dateStr = toISODate(dates[dateIndex]);
     const cell = getCellData(product.id, dateStr);
@@ -442,7 +515,25 @@ function Dashboard() {
             )}
           </div>
           <div className="stock-cell-row">
-            <span className="stock-qty">{hasQuantity ? quantity : '—'}</span>
+            {isToday && isEditingRemainder ? (
+              <input
+                type="number"
+                className="stock-qty-input"
+                min="0"
+                value={editedRemainders[product.id] ?? ''}
+                placeholder={
+                  hasQuantity ? String(quantity) : undefined
+                }
+                onChange={(e) =>
+                  setEditedRemainders((prev) => ({
+                    ...prev,
+                    [product.id]: e.target.value,
+                  }))
+                }
+              />
+            ) : (
+              <span className="stock-qty">{hasQuantity ? quantity : '—'}</span>
+            )}
           </div>
           <div className="stock-cell-row">
             {isToday ? (
@@ -644,8 +735,17 @@ function Dashboard() {
                   {freeSpace}
                 </strong>
               </span>
+              <span className="store-stat-divider" />
             </>
           )}
+          <button
+            type="button"
+            className="btn-sm btn-update store-edit-remainder-btn"
+            onClick={handleRemainderEditToggle}
+            disabled={savingRemainders}
+          >
+            {isEditingRemainder ? 'сохранить' : 'изменить'}
+          </button>
         </div>
         <div className="stock-scroll-container">
           <div className="products-table-wrapper stock-grid-wrapper">

@@ -701,6 +701,31 @@
   color: #1e293b;
 }
 
+.stock-qty-input {
+  width: 56px;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.stock-qty-input::placeholder {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.stock-qty-input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.store-edit-remainder-btn {
+  margin-left: auto;
+}
+
 .stock-shipment-input {
   width: 56px;
   padding: 0.3rem 0.4rem;
