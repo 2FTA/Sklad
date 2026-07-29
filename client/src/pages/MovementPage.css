@@ -156,7 +156,7 @@
 .movement-invoice-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: 12pt;
   line-height: 1;
   background: transparent;
   border: 1px solid #000;
@@ -168,7 +168,7 @@
   padding: 2px 4px;
   margin: 0;
   background: transparent;
-  font-size: 12px;
+  font-size: 12pt;
   line-height: 1;
 }
 
