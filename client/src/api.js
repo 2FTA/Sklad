@@ -23,6 +23,20 @@ async function request(url, options = {}) {
   return data;
 }
 
+async function requestBlob(url) {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}${url}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Ошибка запроса');
+  }
+
+  return res.blob();
+}
+
 export const api = {
   login: (login, password) =>
     request('/auth/login', {
@@ -171,6 +185,39 @@ export const api = {
   getReport: (userId, month) => request(`/reports/${userId}/${month}`),
 
   getMovementData: (userId, type) => request(`/movement/${userId}?type=${type}`),
+
+  getMovementExports: (userId, type, month) => {
+    const params = new URLSearchParams();
+    if (userId) params.set('userId', userId);
+    if (type) params.set('type', type);
+    if (month) params.set('month', month);
+    const query = params.toString();
+    return request(`/movement-exports${query ? `?${query}` : ''}`);
+  },
+
+  uploadMovementExport: async (userId, type, month, fileBlob, fileName) => {
+    const formData = new FormData();
+    formData.append('userId', String(userId));
+    formData.append('type', type);
+    formData.append('month', month);
+    formData.append('file', fileBlob, fileName);
+
+    const token = getToken();
+    const res = await fetch(`${API_BASE}/movement-exports`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(data.error || 'Ошибка загрузки файла');
+    }
+
+    return data;
+  },
+
+  downloadMovementExport: (id) => requestBlob(`/movement-exports/${id}/download`),
 
   getCustomPositions: () => request('/custom-positions'),
 

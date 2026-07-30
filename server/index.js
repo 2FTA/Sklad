@@ -12,6 +12,7 @@ const reportsRoutes = require('./routes/reports');
 const movementRoutes = require('./routes/movement');
 const customPositionsRoutes = require('./routes/customPositions');
 const summaryRoutes = require('./routes/summary');
+const movementExportsRoutes = require('./routes/movementExports');
 
 const globalProductsRoutes = require('./routes/globalProducts');
 
@@ -30,6 +31,7 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/movement', movementRoutes);
 app.use('/api/custom-positions', customPositionsRoutes);
 app.use('/api/summary', summaryRoutes);
+app.use('/api/movement-exports', movementExportsRoutes);
 
 app.use('/auth', authRoutes);
 app.use('/users', usersRoutes);
@@ -40,6 +42,7 @@ app.use('/reports', reportsRoutes);
 app.use('/movement', movementRoutes);
 app.use('/custom-positions', customPositionsRoutes);
 app.use('/summary', summaryRoutes);
+app.use('/movement-exports', movementExportsRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });

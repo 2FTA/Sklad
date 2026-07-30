@@ -81,6 +81,19 @@
   text-align: center;
 }
 
+.movement-exports-table-wrapper {
+  max-width: 520px;
+}
+
+.movement-exports-table th,
+.movement-exports-table td {
+  padding: 0.85rem 1rem;
+}
+
+.movement-export-download-btn {
+  min-width: 110px;
+}
+
 .reports-toolbar .btn-export {
   background: #16a34a;
   color: #fff;

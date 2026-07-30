@@ -93,6 +93,20 @@ async function ensureSummaryStocksSchema(pool) {
   `);
 }
 
+async function ensureMovementExportsSchema(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS movement_exports (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type VARCHAR(20) NOT NULL,
+      month DATE NOT NULL,
+      file_name VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      UNIQUE (user_id, type, month)
+    )
+  `);
+}
+
 async function ensureReportsSchema(pool) {
   // Таблицы reports, report_products и report_stocks созданы в Supabase вручную.
   // Не создаём их здесь, чтобы не конфликтовать со схемой production.
@@ -106,6 +120,7 @@ async function ensureSchema(pool) {
   await ensureCustomPositionsSchema(pool);
   await ensureReportStocksSchema(pool);
   await ensureSummaryStocksSchema(pool);
+  await ensureMovementExportsSchema(pool);
   await ensureReportsSchema(pool);
 }
 
@@ -117,5 +132,6 @@ module.exports = {
   ensureCustomPositionsSchema,
   ensureReportStocksSchema,
   ensureSummaryStocksSchema,
+  ensureMovementExportsSchema,
   ensureReportsSchema,
 };

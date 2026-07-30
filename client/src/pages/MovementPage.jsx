@@ -460,12 +460,26 @@ function MovementPage() {
       applyInvoicePrintSetup(worksheet, movementData.length);
 
       const buffer = await workbook.xlsx.writeBuffer();
-      saveAs(
-        new Blob([buffer], {
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        }),
-        fileName
-      );
+      const fileBlob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+
+      saveAs(fileBlob, fileName);
+
+      const sourceKey = movementType === 'shipment' ? toUserId : fromUserId;
+      const sourceParsed = parsePositionKey(sourceKey);
+
+      if (sourceParsed?.kind === 'user') {
+        const month = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-01`;
+        await api.uploadMovementExport(
+          sourceParsed.id,
+          movementType,
+          month,
+          fileBlob,
+          fileName
+        );
+        showToast('Файл сохранён и доступен в отчетах', 'success');
+      }
 
       /*
       // PDF export (legacy)

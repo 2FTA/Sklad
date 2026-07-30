@@ -16,6 +16,24 @@ import './Dashboard.css';
 import './AdminPages.css';
 import './ReportsPage.css';
 
+const MOVEMENT_TYPE_OPTIONS = [
+  { value: 'movement', label: 'перемещение' },
+  { value: 'return', label: 'возврат' },
+  { value: 'shipment', label: 'отгрузка' },
+];
+
+function formatExportDate(value) {
+  const date = new Date(value);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}.${month}.${year}`;
+}
+
+function monthValueToDate(monthValue) {
+  return `${monthValue}-01`;
+}
+
 function DeleteProductModal({ productName, onConfirm, onClose, loading, error }) {
   const [password, setPassword] = useState('');
 
@@ -66,6 +84,12 @@ function ReportsPage() {
   const [shopUsers, setShopUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(monthOptions[0]?.value || '');
+  const [movementUserId, setMovementUserId] = useState('');
+  const [movementTypeFilter, setMovementTypeFilter] = useState('');
+  const [movementMonth, setMovementMonth] = useState(monthOptions[0]?.value || '');
+  const [movementExports, setMovementExports] = useState([]);
+  const [movementLoading, setMovementLoading] = useState(false);
+  const [downloadingExportId, setDownloadingExportId] = useState(null);
   const [reportId, setReportId] = useState(null);
   const [reportExists, setReportExists] = useState(false);
   const [products, setProducts] = useState([]);
@@ -89,6 +113,7 @@ function ReportsPage() {
       setShopUsers(shops);
       if (shops.length > 0) {
         setSelectedUserId(String(shops[0].id));
+        setMovementUserId(String(shops[0].id));
       }
     } catch (err) {
       showToast(err.message, 'error');
@@ -123,6 +148,29 @@ function ReportsPage() {
     }
   }, [selectedUserId, selectedMonth, showToast]);
 
+  const loadMovementExports = useCallback(async () => {
+    if (!movementUserId || !movementTypeFilter || !movementMonth) {
+      setMovementExports([]);
+      return;
+    }
+
+    setMovementLoading(true);
+
+    try {
+      const data = await api.getMovementExports(
+        movementUserId,
+        movementTypeFilter,
+        monthValueToDate(movementMonth)
+      );
+      setMovementExports(data);
+    } catch (err) {
+      showToast(err.message, 'error');
+      setMovementExports([]);
+    } finally {
+      setMovementLoading(false);
+    }
+  }, [movementUserId, movementTypeFilter, movementMonth, showToast]);
+
   useEffect(() => {
     loadShops();
   }, [loadShops]);
@@ -132,6 +180,29 @@ function ReportsPage() {
       loadReport();
     }
   }, [selectedUserId, selectedMonth, loadReport]);
+
+  useEffect(() => {
+    if (viewType === 'movement') {
+      loadMovementExports();
+    }
+  }, [viewType, loadMovementExports]);
+
+  const handleDownloadExport = async (exportItem) => {
+    setDownloadingExportId(exportItem.id);
+
+    try {
+      const blob = await api.downloadMovementExport(exportItem.id);
+      saveAs(blob, exportItem.fileName);
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setDownloadingExportId(null);
+    }
+  };
+
+  const movementFiltersSelected = Boolean(
+    movementUserId && movementTypeFilter && movementMonth
+  );
 
   const handleDeleteProduct = async (password) => {
     if (!deleteTarget || !reportId) return;
@@ -300,7 +371,7 @@ function ReportsPage() {
             <option value="movement">движение</option>
           </select>
 
-          {viewType === 'reports' && (
+          {viewType === 'reports' ? (
             <>
               <select
                 className="reports-select"
@@ -340,11 +411,93 @@ function ReportsPage() {
                 Экспорт
               </button>
             </>
+          ) : (
+            <>
+              <select
+                className="reports-select"
+                value={movementUserId}
+                onChange={(e) => setMovementUserId(e.target.value)}
+                disabled={shopUsers.length === 0}
+              >
+                {shopUsers.length === 0 ? (
+                  <option value="">Нет магазинов</option>
+                ) : (
+                  shopUsers.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.login}
+                    </option>
+                  ))
+                )}
+              </select>
+
+              <select
+                className="reports-select"
+                value={movementTypeFilter}
+                onChange={(e) => setMovementTypeFilter(e.target.value)}
+              >
+                <option value="">Тип движения</option>
+                {MOVEMENT_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                className="reports-select"
+                value={movementMonth}
+                onChange={(e) => setMovementMonth(e.target.value)}
+              >
+                {monthOptions.map((month) => (
+                  <option key={month.value} value={month.value}>
+                    {month.label}
+                  </option>
+                ))}
+              </select>
+            </>
           )}
         </div>
 
         {viewType === 'movement' ? (
-          <div className="reports-movement-placeholder">делаю</div>
+          !movementFiltersSelected ? (
+            <div className="empty-state">Выберите магазин, тип движения и месяц</div>
+          ) : movementLoading ? (
+            <div className="loading">Загрузка...</div>
+          ) : movementExports.length === 0 ? (
+            <div className="empty-state">Нет накладных за выбранный период</div>
+          ) : (
+            <div className="table-panel reports-table-panel">
+              <div className="products-table-wrapper movement-exports-table-wrapper">
+                <table className="products-table movement-exports-table">
+                  <thead>
+                    <tr>
+                      <th>Дата</th>
+                      <th>Скачать</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {movementExports.map((exportItem) => (
+                      <tr key={exportItem.id}>
+                        <td>{formatExportDate(exportItem.createdAt)}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn-sm btn-update movement-export-download-btn"
+                            onClick={() => handleDownloadExport(exportItem)}
+                            disabled={downloadingExportId === exportItem.id}
+                          >
+                            {downloadingExportId === exportItem.id
+                              ? 'Загрузка...'
+                              : 'Скачать'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
         ) : loading ? (
           <div className="loading">Загрузка...</div>
         ) : !reportExists ? (
