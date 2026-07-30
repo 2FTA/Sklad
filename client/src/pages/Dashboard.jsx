@@ -494,10 +494,9 @@ function Dashboard() {
       returnInputs[shipmentKey] !== undefined
         ? returnInputs[shipmentKey]
         : cell?.return ?? '';
-    const displayShipment =
-      shipmentValue === '' || shipmentValue === undefined ? '—' : shipmentValue;
-    const movementNum = parseInt(cell?.movement ?? 0, 10) || 0;
-    const returnNum = parseInt(cell?.return ?? 0, 10) || 0;
+    const pastShipments = cell?.shipments;
+    const pastMovement = parseInt(cell?.movement ?? 0, 10) || 0;
+    const pastReturn = parseInt(cell?.return ?? 0, 10) || 0;
 
     return (
       <td key={product.id} className="stock-cell">
@@ -528,8 +527,10 @@ function Dashboard() {
                   }))
                 }
               />
+            ) : quantity !== null && quantity !== undefined ? (
+              <span className="stock-qty">{quantity}</span>
             ) : (
-              <span className="stock-qty">{hasQuantity ? quantity : '—'}</span>
+              <span className="stock-cell-placeholder">&nbsp;</span>
             )}
           </div>
           <div className="stock-cell-row">
@@ -544,8 +545,10 @@ function Dashboard() {
                 }
                 onBlur={() => handleTodayStockSave(product.id)}
               />
+            ) : pastShipments != null && pastShipments !== 0 ? (
+              <span className="stock-shipment-readonly">{pastShipments}</span>
             ) : (
-              <span className="stock-shipment-readonly">{displayShipment}</span>
+              <span className="stock-cell-placeholder">&nbsp;</span>
             )}
           </div>
           <div className="stock-cell-row">
@@ -560,10 +563,10 @@ function Dashboard() {
                 }
                 onBlur={() => handleTodayStockSave(product.id)}
               />
+            ) : pastMovement !== 0 ? (
+              <span className="stock-movement-readonly">{pastMovement}</span>
             ) : (
-              <span className="stock-movement-readonly">
-                {movementNum !== 0 ? movementNum : '\u00A0'}
-              </span>
+              <span className="stock-cell-placeholder">&nbsp;</span>
             )}
           </div>
           <div className="stock-cell-row">
@@ -578,10 +581,10 @@ function Dashboard() {
                 }
                 onBlur={() => handleTodayStockSave(product.id)}
               />
+            ) : pastReturn !== 0 ? (
+              <span className="stock-return-readonly">{pastReturn}</span>
             ) : (
-              <span className="stock-return-readonly">
-                {returnNum !== 0 ? returnNum : '\u00A0'}
-              </span>
+              <span className="stock-cell-placeholder">&nbsp;</span>
             )}
           </div>
         </div>
