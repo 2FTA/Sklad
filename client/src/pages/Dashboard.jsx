@@ -504,7 +504,7 @@ function Dashboard() {
           <div className="stock-cell-row">
             {sales !== null ? (
               <span className={`stock-diff ${sales >= 0 ? 'positive' : 'negative'}`}>
-                {sales > 0 ? `+${sales}` : sales}
+                {sales}
               </span>
             ) : (
               <span className="stock-cell-placeholder">&nbsp;</span>
