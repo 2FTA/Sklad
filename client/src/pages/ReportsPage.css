@@ -69,6 +69,18 @@
   border-color: #2563eb;
 }
 
+.reports-movement-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #64748b;
+  text-align: center;
+}
+
 .reports-toolbar .btn-export {
   background: #16a34a;
   color: #fff;

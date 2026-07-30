@@ -62,6 +62,7 @@ function ReportsPage() {
   const { showToast } = useToast();
   const monthOptions = useMemo(() => getReportMonths(), []);
 
+  const [viewType, setViewType] = useState('reports');
   const [shopUsers, setShopUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(monthOptions[0]?.value || '');
@@ -292,44 +293,59 @@ function ReportsPage() {
         <div className="reports-toolbar">
           <select
             className="reports-select"
-            value={selectedUserId}
-            onChange={(e) => setSelectedUserId(e.target.value)}
-            disabled={shopUsers.length === 0}
+            value={viewType}
+            onChange={(e) => setViewType(e.target.value)}
           >
-            {shopUsers.length === 0 ? (
-              <option value="">Нет магазинов</option>
-            ) : (
-              shopUsers.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.login}
-                </option>
-              ))
-            )}
+            <option value="reports">отчеты</option>
+            <option value="movement">движение</option>
           </select>
 
-          <select
-            className="reports-select"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-          >
-            {monthOptions.map((month) => (
-              <option key={month.value} value={month.value}>
-                {month.label}
-              </option>
-            ))}
-          </select>
+          {viewType === 'reports' && (
+            <>
+              <select
+                className="reports-select"
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
+                disabled={shopUsers.length === 0}
+              >
+                {shopUsers.length === 0 ? (
+                  <option value="">Нет магазинов</option>
+                ) : (
+                  shopUsers.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.login}
+                    </option>
+                  ))
+                )}
+              </select>
 
-          <button
-            type="button"
-            className="btn-export"
-            onClick={handleExport}
-            disabled={loading || !reportExists || products.length === 0}
-          >
-            Экспорт
-          </button>
+              <select
+                className="reports-select"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+              >
+                {monthOptions.map((month) => (
+                  <option key={month.value} value={month.value}>
+                    {month.label}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                className="btn-export"
+                onClick={handleExport}
+                disabled={loading || !reportExists || products.length === 0}
+              >
+                Экспорт
+              </button>
+            </>
+          )}
         </div>
 
-        {loading ? (
+        {viewType === 'movement' ? (
+          <div className="reports-movement-placeholder">делаю</div>
+        ) : loading ? (
           <div className="loading">Загрузка...</div>
         ) : !reportExists ? (
           <div className="empty-state">
