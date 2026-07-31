@@ -2,6 +2,11 @@ const express = require('express');
 const pool = require('../db');
 const { authMiddleware, adminOnly } = require('../middleware/auth');
 const { syncDailyStockToReport } = require('../utils/reportSync');
+const {
+  getExistingDailyStock,
+  processAdminStockInventory,
+  processQuantityInventory,
+} = require('../utils/inventoryService');
 
 const router = express.Router();
 
@@ -49,80 +54,116 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
+    const client = await pool.connect();
     const saved = [];
 
-    for (const item of stocks) {
-      const productId = parseInt(item.productId, 10);
+    try {
+      await client.query('BEGIN');
 
-      if (isNaN(productId)) {
-        return res.status(400).json({ error: 'Некорректные данные остатков' });
-      }
+      for (const item of stocks) {
+        const productId = parseInt(item.productId, 10);
 
-      const product = await pool.query(
-        'SELECT id FROM products WHERE id = $1 AND user_id = $2',
-        [productId, targetUserId]
-      );
-
-      if (product.rows.length === 0) {
-        return res.status(404).json({ error: `Товар ${productId} не найден` });
-      }
-
-      const hasQuantity =
-        item.quantity !== undefined &&
-        item.quantity !== null &&
-        item.quantity !== '';
-
-      if (hasQuantity) {
-        const quantity = parseInt(item.quantity, 10);
-
-        if (isNaN(quantity) || quantity < 0) {
-          return res.status(400).json({ error: 'Некорректные данные остатков' });
+        if (isNaN(productId)) {
+          throw new Error('Некорректные данные остатков');
         }
 
-        const result = await pool.query(
-          `INSERT INTO daily_stocks (product_id, user_id, date, quantity, shipments, movement, "return")
-           VALUES ($1, $2, $3::date, $4, 0, 0, 0)
-           ON CONFLICT (product_id, date)
-           DO UPDATE SET quantity = $4
-           RETURNING product_id AS "productId", date::text AS date, quantity, shipments,
-                     movement, "return" AS "return"`,
-          [productId, targetUserId, date, quantity]
+        const product = await client.query(
+          'SELECT id FROM products WHERE id = $1 AND user_id = $2',
+          [productId, targetUserId]
         );
 
-        await pool.query(
-          'UPDATE products SET quantity = $1 WHERE id = $2',
-          [quantity, productId]
+        if (product.rows.length === 0) {
+          throw new Error(`Товар ${productId} не найден`);
+        }
+
+        const beforeStock = await getExistingDailyStock(
+          client,
+          productId,
+          targetUserId,
+          date
         );
 
-        saved.push(result.rows[0]);
-      } else if (req.user.role === 'admin') {
-        const shipments = parseInt(item.shipments, 10) || 0;
-        const movement = parseInt(item.movement, 10) || 0;
-        const returnValue = parseInt(item.return, 10) || 0;
+        const hasQuantity =
+          item.quantity !== undefined &&
+          item.quantity !== null &&
+          item.quantity !== '';
 
-        const result = await pool.query(
-          `INSERT INTO daily_stocks (product_id, user_id, date, quantity, shipments, movement, "return")
-           VALUES ($1, $2, $3::date, NULL, $4, $5, $6)
-           ON CONFLICT (product_id, date)
-           DO UPDATE SET shipments = $4, movement = $5, "return" = $6
-           RETURNING product_id AS "productId", date::text AS date, quantity, shipments,
-                     movement, "return" AS "return"`,
-          [productId, targetUserId, date, shipments, movement, returnValue]
-        );
+        if (hasQuantity) {
+          const quantity = parseInt(item.quantity, 10);
 
-        saved.push(result.rows[0]);
-      } else {
-        return res.status(400).json({ error: 'Некорректные данные остатков' });
+          if (isNaN(quantity) || quantity < 0) {
+            throw new Error('Некорректные данные остатков');
+          }
+
+          const result = await client.query(
+            `INSERT INTO daily_stocks (product_id, user_id, date, quantity, shipments, movement, "return")
+             VALUES ($1, $2, $3::date, $4, 0, 0, 0)
+             ON CONFLICT (product_id, date)
+             DO UPDATE SET quantity = $4
+             RETURNING product_id AS "productId", date::text AS date, quantity, shipments,
+                       movement, "return" AS "return"`,
+            [productId, targetUserId, date, quantity]
+          );
+
+          await client.query('UPDATE products SET quantity = $1 WHERE id = $2', [
+            quantity,
+            productId,
+          ]);
+
+          const savedRow = result.rows[0];
+          saved.push(savedRow);
+
+          await processQuantityInventory(client, productId, targetUserId, date, quantity);
+        } else if (req.user.role === 'admin') {
+          const shipments = parseInt(item.shipments, 10) || 0;
+          const movement = parseInt(item.movement, 10) || 0;
+          const returnValue = parseInt(item.return, 10) || 0;
+
+          const result = await client.query(
+            `INSERT INTO daily_stocks (product_id, user_id, date, quantity, shipments, movement, "return")
+             VALUES ($1, $2, $3::date, NULL, $4, $5, $6)
+             ON CONFLICT (product_id, date)
+             DO UPDATE SET shipments = $4, movement = $5, "return" = $6
+             RETURNING product_id AS "productId", date::text AS date, quantity, shipments,
+                       movement, "return" AS "return"`,
+            [productId, targetUserId, date, shipments, movement, returnValue]
+          );
+
+          const savedRow = result.rows[0];
+          saved.push(savedRow);
+
+          await processAdminStockInventory(
+            client,
+            productId,
+            targetUserId,
+            date,
+            beforeStock,
+            item,
+            savedRow
+          );
+        } else {
+          throw new Error('Некорректные данные остатков');
+        }
       }
 
-      const savedRow = saved[saved.length - 1];
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error(err);
+      const message = err.message || 'Ошибка сервера';
+      const status = /не хват|insufficient|спис/i.test(message) ? 400 : 500;
+      return res.status(status).json({ error: message });
+    } finally {
+      client.release();
+    }
 
+    for (const savedRow of saved) {
       try {
         await syncDailyStockToReport(
           pool,
           targetUserId,
           date,
-          productId,
+          savedRow.productId,
           savedRow.quantity,
           savedRow.shipments,
           savedRow.movement,
@@ -177,47 +218,68 @@ router.put('/quantity', adminOnly, async (req, res) => {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
+    const client = await pool.connect();
     const saved = [];
 
-    for (const item of items) {
-      const productId = parseInt(item.productId, 10);
-      const quantity = parseInt(item.quantity, 10);
+    try {
+      await client.query('BEGIN');
 
-      if (isNaN(productId) || isNaN(quantity) || quantity < 0) {
-        return res.status(400).json({ error: 'Некорректные данные остатков' });
+      for (const item of items) {
+        const productId = parseInt(item.productId, 10);
+        const quantity = parseInt(item.quantity, 10);
+
+        if (isNaN(productId) || isNaN(quantity) || quantity < 0) {
+          throw new Error('Некорректные данные остатков');
+        }
+
+        const product = await client.query(
+          'SELECT id FROM products WHERE id = $1 AND user_id = $2',
+          [productId, targetUserId]
+        );
+
+        if (product.rows.length === 0) {
+          throw new Error(`Товар ${productId} не найден`);
+        }
+
+        const result = await client.query(
+          `INSERT INTO daily_stocks (product_id, user_id, date, quantity, shipments, movement, "return")
+           VALUES ($1, $2, $3::date, $4, 0, 0, 0)
+           ON CONFLICT (product_id, date)
+           DO UPDATE SET quantity = $4
+           RETURNING product_id AS "productId", date::text AS date, quantity, shipments,
+                     movement, "return" AS "return"`,
+          [productId, targetUserId, date, quantity]
+        );
+
+        await client.query('UPDATE products SET quantity = $1 WHERE id = $2', [
+          quantity,
+          productId,
+        ]);
+
+        const savedRow = result.rows[0];
+        saved.push(savedRow);
+
+        await processQuantityInventory(client, productId, targetUserId, date, quantity);
       }
 
-      const product = await pool.query(
-        'SELECT id FROM products WHERE id = $1 AND user_id = $2',
-        [productId, targetUserId]
-      );
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error(err);
+      const message = err.message || 'Ошибка сервера';
+      const status = /не хват|insufficient|спис/i.test(message) ? 400 : 500;
+      return res.status(status).json({ error: message });
+    } finally {
+      client.release();
+    }
 
-      if (product.rows.length === 0) {
-        return res.status(404).json({ error: `Товар ${productId} не найден` });
-      }
-
-      const result = await pool.query(
-        `INSERT INTO daily_stocks (product_id, user_id, date, quantity, shipments, movement, "return")
-         VALUES ($1, $2, $3::date, $4, 0, 0, 0)
-         ON CONFLICT (product_id, date)
-         DO UPDATE SET quantity = $4
-         RETURNING product_id AS "productId", date::text AS date, quantity, shipments,
-                   movement, "return" AS "return"`,
-        [productId, targetUserId, date, quantity]
-      );
-
-      await pool.query('UPDATE products SET quantity = $1 WHERE id = $2', [quantity, productId]);
-
-      saved.push(result.rows[0]);
-
-      const savedRow = result.rows[0];
-
+    for (const savedRow of saved) {
       try {
         await syncDailyStockToReport(
           pool,
           targetUserId,
           date,
-          productId,
+          savedRow.productId,
           savedRow.quantity,
           savedRow.shipments,
           savedRow.movement,

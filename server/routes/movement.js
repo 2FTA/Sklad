@@ -28,6 +28,7 @@ router.get('/:userId', async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT
+         p.id AS product_id,
          gp.name AS product_name,
          gp.weight AS unit,
          gp.price AS price,
@@ -44,6 +45,7 @@ router.get('/:userId', async (req, res) => {
 
     res.json(
       result.rows.map((row) => ({
+        productId: row.product_id,
         productName: row.product_name,
         unit: row.unit,
         price: row.price ?? 0,

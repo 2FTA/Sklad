@@ -6,6 +6,7 @@ import UsersManagement from './pages/UsersManagement';
 import ProductsManagement from './pages/ProductsManagement';
 import ReportsPage from './pages/ReportsPage';
 import MovementPage from './pages/MovementPage';
+import ExpiredPage from './pages/ExpiredPage';
 import AdminRoute from './components/AdminRoute';
 import { ToastProvider } from './components/ToastContext';
 import { getStoredUser } from './api';
@@ -46,6 +47,14 @@ function App() {
         element={
           <AdminRoute>
             <ProductsManagement />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/expired"
+        element={
+          <AdminRoute>
+            <ExpiredPage />
           </AdminRoute>
         }
       />

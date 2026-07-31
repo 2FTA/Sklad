@@ -1,0 +1,29 @@
+.expired-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+  flex-shrink: 0;
+}
+
+.expired-table-wrapper {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.expired-num,
+.expired-overdue {
+  text-align: center;
+  font-weight: 600;
+}
+
+.expired-overdue {
+  color: #dc2626;
+}
+
+.expired-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f1f5f9;
+}

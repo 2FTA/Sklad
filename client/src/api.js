@@ -186,6 +186,20 @@ export const api = {
 
   getMovementData: (userId, type) => request(`/movement/${userId}?type=${type}`),
 
+  getExpiredLots: () => request('/inventory/expired'),
+
+  receiveInventory: (productId, shopId, quantity) =>
+    request('/inventory/receive', {
+      method: 'POST',
+      body: JSON.stringify({ productId, shopId, quantity }),
+    }),
+
+  consumeInventory: (productId, shopId, quantity) =>
+    request('/inventory/consume', {
+      method: 'POST',
+      body: JSON.stringify({ productId, shopId, quantity }),
+    }),
+
   getMovementExports: (userId, type, month) => {
     const params = new URLSearchParams();
     if (userId) params.set('userId', userId);

@@ -33,6 +33,12 @@ function AdminTopBar({ title, onMenuClick, leftExtra }) {
       </div>
       <div className="top-bar-actions admin-nav">
         <Link
+          to="/expired"
+          className={`btn-nav ${location.pathname === '/expired' ? 'active' : ''}`}
+        >
+          Просрочка
+        </Link>
+        <Link
           to="/movement"
           className={`btn-nav ${location.pathname === '/movement' ? 'active' : ''}`}
         >
