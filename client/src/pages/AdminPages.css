@@ -138,6 +138,23 @@
   min-width: 800px;
 }
 
+.summary-table-panel {
+  flex: 1;
+  min-height: 0;
+}
+
+.summary-scroll-container {
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.summary-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f1f5f9;
+}
+
 .summary-table .product-name-col {
   position: sticky;
   left: 0;
@@ -145,6 +162,11 @@
   z-index: 1;
   min-width: 140px;
   font-weight: 500;
+}
+
+.summary-table thead .product-name-col {
+  z-index: 3;
+  background: #f1f5f9;
 }
 
 .summary-table tbody .product-name-col {

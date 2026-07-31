@@ -630,8 +630,8 @@ function Dashboard() {
     }
 
     return (
-      <div className="table-panel">
-        <div className="stock-scroll-container">
+      <div className="table-panel summary-table-panel">
+        <div className="stock-scroll-container summary-scroll-container">
           <div className="products-table-wrapper summary-table-wrapper">
           <table className="products-table summary-table">
             <thead>
