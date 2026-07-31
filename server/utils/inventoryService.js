@@ -1,3 +1,12 @@
+function todayISO() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 async function resolveGlobalProduct(client, productId, shopId) {
   const productResult = await client.query(
     `SELECT global_product_id
@@ -33,27 +42,45 @@ async function resolveGlobalProduct(client, productId, shopId) {
   };
 }
 
-async function receiveInventory(client, productId, shopId, quantity) {
-  const amount = parseInt(quantity, 10);
-
-  if (!amount || amount <= 0) {
+async function syncShipmentInventoryLot(client, productId, shopId, date, shipments) {
+  if (date !== todayISO()) {
     return null;
   }
 
+  const amount = parseInt(shipments, 10) || 0;
   const { globalProductId, shelfLife } = await resolveGlobalProduct(
     client,
     productId,
     shopId
   );
 
-  const result = await client.query(
-    `INSERT INTO inventory_lots (product_id, shop_id, quantity, received_date, expiration_date)
-     VALUES ($1, $2, $3, CURRENT_DATE, CURRENT_DATE + ($4::int * INTERVAL '1 day'))
-     RETURNING id, quantity, expiration_date::text AS "expirationDate"`,
-    [globalProductId, shopId, amount, shelfLife]
+  if (amount > 0) {
+    const result = await client.query(
+      `INSERT INTO inventory_lots (product_id, shop_id, quantity, received_date, expiration_date)
+       VALUES ($1, $2, $3, CURRENT_DATE, CURRENT_DATE + ($4::int * INTERVAL '1 day'))
+       ON CONFLICT (product_id, shop_id, received_date)
+       DO UPDATE SET
+         quantity = EXCLUDED.quantity,
+         expiration_date = EXCLUDED.expiration_date,
+         updated_at = NOW()
+       RETURNING id, quantity, expiration_date::text AS "expirationDate"`,
+      [globalProductId, shopId, amount, shelfLife]
+    );
+
+    return result.rows[0];
+  }
+
+  await client.query(
+    `DELETE FROM inventory_lots
+     WHERE product_id = $1 AND shop_id = $2 AND received_date = CURRENT_DATE`,
+    [globalProductId, shopId]
   );
 
-  return result.rows[0];
+  return null;
+}
+
+async function receiveInventory(client, productId, shopId, quantity) {
+  return syncShipmentInventoryLot(client, productId, shopId, todayISO(), quantity);
 }
 
 async function consumeInventory(client, productId, shopId, quantity) {
@@ -107,7 +134,6 @@ async function processAdminStockInventory(
   item,
   savedRow
 ) {
-  const oldShipments = before?.shipments ?? 0;
   const oldMovement = before?.movement ?? 0;
   const oldReturn = before?.return ?? 0;
 
@@ -115,9 +141,8 @@ async function processAdminStockInventory(
   const newMovement = parseInt(item.movement, 10) || 0;
   const newReturn = parseInt(item.return, 10) || 0;
 
-  const shipmentDelta = newShipments - oldShipments;
-  if (shipmentDelta > 0) {
-    await receiveInventory(client, productId, shopId, shipmentDelta);
+  if (date === todayISO()) {
+    await syncShipmentInventoryLot(client, productId, shopId, date, newShipments);
   }
 
   let consumeQty = 0;
@@ -165,6 +190,7 @@ async function processQuantityInventory(client, productId, shopId, date, quantit
 module.exports = {
   receiveInventory,
   consumeInventory,
+  syncShipmentInventoryLot,
   getExistingDailyStock,
   getPreviousDayQuantity,
   processAdminStockInventory,

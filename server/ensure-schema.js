@@ -113,6 +113,28 @@ async function ensureReportsSchema(pool) {
   void pool;
 }
 
+async function ensureInventoryLotsSchema(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS inventory_lots (
+      id SERIAL PRIMARY KEY,
+      product_id INTEGER NOT NULL REFERENCES global_products(id) ON DELETE CASCADE,
+      shop_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      quantity INTEGER NOT NULL,
+      received_date DATE NOT NULL DEFAULT CURRENT_DATE,
+      expiration_date DATE NOT NULL
+    )
+  `);
+
+  await pool.query(`
+    ALTER TABLE inventory_lots ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_inventory_lots_product_shop_date
+    ON inventory_lots (product_id, shop_id, received_date)
+  `);
+}
+
 async function ensureSchema(pool) {
   await ensureUsersSchema(pool);
   await ensureGlobalProductsSchema(pool);
@@ -121,6 +143,7 @@ async function ensureSchema(pool) {
   await ensureReportStocksSchema(pool);
   await ensureSummaryStocksSchema(pool);
   await ensureMovementExportsSchema(pool);
+  await ensureInventoryLotsSchema(pool);
   await ensureReportsSchema(pool);
 }
 
@@ -133,5 +156,6 @@ module.exports = {
   ensureReportStocksSchema,
   ensureSummaryStocksSchema,
   ensureMovementExportsSchema,
+  ensureInventoryLotsSchema,
   ensureReportsSchema,
 };

@@ -151,7 +151,7 @@ router.post('/', async (req, res) => {
       await client.query('ROLLBACK');
       console.error(err);
       const message = err.message || 'Ошибка сервера';
-      const status = /не хват|insufficient|спис/i.test(message) ? 400 : 500;
+      const status = /не хват|insufficient|спис|не найден/i.test(message) ? 400 : 500;
       return res.status(status).json({ error: message });
     } finally {
       client.release();
@@ -267,7 +267,7 @@ router.put('/quantity', adminOnly, async (req, res) => {
       await client.query('ROLLBACK');
       console.error(err);
       const message = err.message || 'Ошибка сервера';
-      const status = /не хват|insufficient|спис/i.test(message) ? 400 : 500;
+      const status = /не хват|insufficient|спис|не найден/i.test(message) ? 400 : 500;
       return res.status(status).json({ error: message });
     } finally {
       client.release();
