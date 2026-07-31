@@ -29,7 +29,12 @@ router.post('/receive', async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err);
-    res.status(500).json({ error: err.message || 'Ошибка сервера' });
+    const message = err.message || 'Ошибка сервера';
+    const status =
+      message.includes('не найден') || /не хват|insufficient|спис/i.test(message)
+        ? 400
+        : 500;
+    res.status(status).json({ error: message });
   } finally {
     client.release();
   }

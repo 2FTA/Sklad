@@ -1,17 +1,36 @@
-async function getProductShelfLife(client, productId, shopId) {
-  const result = await client.query(
-    `SELECT gp.shelf_life
-     FROM products p
-     JOIN global_products gp ON p.global_product_id = gp.id
-     WHERE p.id = $1 AND p.user_id = $2`,
+async function resolveGlobalProduct(client, productId, shopId) {
+  const productResult = await client.query(
+    `SELECT global_product_id
+     FROM products
+     WHERE id = $1 AND user_id = $2`,
     [productId, shopId]
   );
 
-  if (result.rows.length === 0) {
-    throw new Error('Товар не найден');
+  if (productResult.rows.length === 0) {
+    throw new Error('Товар не найден для этого магазина');
   }
 
-  return parseInt(result.rows[0].shelf_life ?? 0, 10) || 0;
+  const globalProductId = productResult.rows[0].global_product_id;
+
+  if (!globalProductId) {
+    throw new Error('Товар не найден в глобальном списке');
+  }
+
+  const globalResult = await client.query(
+    `SELECT id, shelf_life
+     FROM global_products
+     WHERE id = $1`,
+    [globalProductId]
+  );
+
+  if (globalResult.rows.length === 0) {
+    throw new Error('Товар не найден в глобальном списке');
+  }
+
+  return {
+    globalProductId,
+    shelfLife: parseInt(globalResult.rows[0].shelf_life ?? 0, 10) || 0,
+  };
 }
 
 async function receiveInventory(client, productId, shopId, quantity) {
@@ -21,13 +40,17 @@ async function receiveInventory(client, productId, shopId, quantity) {
     return null;
   }
 
-  const shelfLife = await getProductShelfLife(client, productId, shopId);
+  const { globalProductId, shelfLife } = await resolveGlobalProduct(
+    client,
+    productId,
+    shopId
+  );
 
   const result = await client.query(
     `INSERT INTO inventory_lots (product_id, shop_id, quantity, received_date, expiration_date)
      VALUES ($1, $2, $3, CURRENT_DATE, CURRENT_DATE + ($4::int * INTERVAL '1 day'))
      RETURNING id, quantity, expiration_date::text AS "expirationDate"`,
-    [productId, shopId, amount, shelfLife]
+    [globalProductId, shopId, amount, shelfLife]
   );
 
   return result.rows[0];
@@ -40,8 +63,10 @@ async function consumeInventory(client, productId, shopId, quantity) {
     return;
   }
 
+  const { globalProductId } = await resolveGlobalProduct(client, productId, shopId);
+
   await client.query('CALL consume_inventory_fifo($1, $2, $3)', [
-    productId,
+    globalProductId,
     shopId,
     amount,
   ]);
