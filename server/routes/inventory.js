@@ -73,7 +73,7 @@ router.get('/expired', async (req, res) => {
       shopName: row.shopname || row.shop_name || row.shopName,
       productName: row.productname || row.product_name || row.productName,
       quantity: row.quantity,
-      expirationDate: row.expirationdate || row.expiration_date || row.expirationDate,
+      receivedDate: row.receiveddate || row.received_date || row.receivedDate,
       daysOverdue: row.daysoverdue ?? row.days_overdue ?? row.daysOverdue,
     }));
 

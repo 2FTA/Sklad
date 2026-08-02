@@ -67,19 +67,19 @@ function ExpiredPage() {
                 <tr>
                   <th>Магазин</th>
                   <th>Наименование</th>
-                  <th>Количество</th>
-                  <th>Дата просрочки</th>
-                  <th>Дней просрочено</th>
+                  <th className="text-center">Количество</th>
+                  <th>Дата отгрузки</th>
+                  <th className="text-center">Дней просрочено</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item, index) => (
-                  <tr key={`${item.shopName}-${item.productName}-${item.expirationDate}-${index}`}>
+                  <tr key={`${item.shopName}-${item.productName}-${item.receivedDate}-${index}`}>
                     <td>{item.shopName}</td>
                     <td>{item.productName}</td>
-                    <td className="expired-num">{item.quantity}</td>
-                    <td>{formatDisplayDate(item.expirationDate)}</td>
-                    <td className="expired-overdue">{item.daysOverdue}</td>
+                    <td className="text-center expired-num">{item.quantity}</td>
+                    <td>{formatDisplayDate(item.receivedDate)}</td>
+                    <td className="text-center expired-overdue">{item.daysOverdue}</td>
                   </tr>
                 ))}
               </tbody>

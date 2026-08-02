@@ -12,7 +12,8 @@
 }
 
 .expired-num,
-.expired-overdue {
+.expired-overdue,
+.expired-table .text-center {
   text-align: center;
   font-weight: 600;
 }
