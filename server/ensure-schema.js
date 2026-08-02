@@ -111,6 +111,38 @@ async function ensureMovementExportsSchema(pool) {
   `);
 }
 
+async function ensureInvoicesSchema(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS invoices (
+      id SERIAL PRIMARY KEY,
+      shop_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type VARCHAR(20) NOT NULL CHECK (type IN ('movement', 'return', 'shipment')),
+      date DATE NOT NULL DEFAULT CURRENT_DATE,
+      from_shop_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      from_name VARCHAR(255) NOT NULL,
+      to_name VARCHAR(255) NOT NULL,
+      total_sum INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      UNIQUE (shop_id, type, date)
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS invoice_items (
+      id SERIAL PRIMARY KEY,
+      invoice_id INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+      product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+      product_name VARCHAR(255) NOT NULL,
+      unit VARCHAR(20),
+      quantity INTEGER NOT NULL DEFAULT 0,
+      price INTEGER NOT NULL DEFAULT 0,
+      line_sum INTEGER NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+}
+
 async function ensureReportsSchema(pool) {
   // Таблицы reports, report_products и report_stocks созданы в Supabase вручную.
   // Не создаём их здесь, чтобы не конфликтовать со схемой production.
@@ -178,6 +210,7 @@ async function ensureSchema(pool) {
   await ensureReportStocksSchema(pool);
   await ensureSummaryStocksSchema(pool);
   await ensureMovementExportsSchema(pool);
+  await ensureInvoicesSchema(pool);
   await ensureInventoryLotsSchema(pool);
   await ensureReportsSchema(pool);
 }
@@ -191,6 +224,7 @@ module.exports = {
   ensureReportStocksSchema,
   ensureSummaryStocksSchema,
   ensureMovementExportsSchema,
+  ensureInvoicesSchema,
   ensureInventoryLotsSchema,
   ensureReportsSchema,
 };

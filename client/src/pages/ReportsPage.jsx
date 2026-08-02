@@ -30,8 +30,17 @@ function formatExportDate(value) {
   return `${day}.${month}.${year}`;
 }
 
-function monthValueToDate(monthValue) {
-  return `${monthValue}-01`;
+function monthValueToApiMonth(monthValue) {
+  return monthValue;
+}
+
+function formatInvoiceListDate(value) {
+  if (!value) return '—';
+  const parts = String(value).split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}.${parts[1]}.${parts[0]}`;
+  }
+  return formatExportDate(value);
 }
 
 function DeleteProductModal({ productName, onConfirm, onClose, loading, error }) {
@@ -87,7 +96,7 @@ function ReportsPage() {
   const [movementUserId, setMovementUserId] = useState('');
   const [movementTypeFilter, setMovementTypeFilter] = useState('');
   const [movementMonth, setMovementMonth] = useState(monthOptions[0]?.value || '');
-  const [movementExports, setMovementExports] = useState([]);
+  const [movementInvoices, setMovementInvoices] = useState([]);
   const [movementLoading, setMovementLoading] = useState(false);
   const [downloadingExportId, setDownloadingExportId] = useState(null);
   const [reportId, setReportId] = useState(null);
@@ -148,24 +157,24 @@ function ReportsPage() {
     }
   }, [selectedUserId, selectedMonth, showToast]);
 
-  const loadMovementExports = useCallback(async () => {
+  const loadMovementInvoices = useCallback(async () => {
     if (!movementUserId || !movementTypeFilter || !movementMonth) {
-      setMovementExports([]);
+      setMovementInvoices([]);
       return;
     }
 
     setMovementLoading(true);
 
     try {
-      const data = await api.getMovementExports(
+      const data = await api.getInvoices(
         movementUserId,
         movementTypeFilter,
-        monthValueToDate(movementMonth)
+        monthValueToApiMonth(movementMonth)
       );
-      setMovementExports(data);
+      setMovementInvoices(data);
     } catch (err) {
       showToast(err.message, 'error');
-      setMovementExports([]);
+      setMovementInvoices([]);
     } finally {
       setMovementLoading(false);
     }
@@ -183,16 +192,16 @@ function ReportsPage() {
 
   useEffect(() => {
     if (viewType === 'movement') {
-      loadMovementExports();
+      loadMovementInvoices();
     }
-  }, [viewType, loadMovementExports]);
+  }, [viewType, loadMovementInvoices]);
 
-  const handleDownloadExport = async (exportItem) => {
-    setDownloadingExportId(exportItem.id);
+  const handleDownloadInvoice = async (invoice) => {
+    setDownloadingExportId(invoice.id);
 
     try {
-      const blob = await api.downloadMovementExport(exportItem.id);
-      saveAs(blob, exportItem.fileName);
+      const blob = await api.downloadInvoice(invoice.id);
+      saveAs(blob, `Накладная_${formatInvoiceListDate(invoice.date)}.xlsx`);
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
@@ -463,7 +472,7 @@ function ReportsPage() {
             <div className="empty-state">Выберите магазин, тип движения и месяц</div>
           ) : movementLoading ? (
             <div className="loading">Загрузка...</div>
-          ) : movementExports.length === 0 ? (
+          ) : movementInvoices.length === 0 ? (
             <div className="empty-state">Нет накладных за выбранный период</div>
           ) : (
             <div className="table-panel reports-table-panel">
@@ -476,17 +485,17 @@ function ReportsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {movementExports.map((exportItem) => (
-                      <tr key={exportItem.id}>
-                        <td>{formatExportDate(exportItem.createdAt)}</td>
+                    {movementInvoices.map((invoice) => (
+                      <tr key={invoice.id}>
+                        <td>{formatInvoiceListDate(invoice.date)}</td>
                         <td>
                           <button
                             type="button"
                             className="btn-sm btn-update movement-export-download-btn"
-                            onClick={() => handleDownloadExport(exportItem)}
-                            disabled={downloadingExportId === exportItem.id}
+                            onClick={() => handleDownloadInvoice(invoice)}
+                            disabled={downloadingExportId === invoice.id}
                           >
-                            {downloadingExportId === exportItem.id
+                            {downloadingExportId === invoice.id
                               ? 'Загрузка...'
                               : 'Скачать'}
                           </button>

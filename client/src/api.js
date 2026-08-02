@@ -200,6 +200,23 @@ export const api = {
       body: JSON.stringify({ productId, shopId, quantity }),
     }),
 
+  saveInvoice: (data) =>
+    request('/inventory/invoice', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getInvoices: (shopId, type, month) => {
+    const params = new URLSearchParams();
+    if (shopId) params.set('shopId', shopId);
+    if (type) params.set('type', type);
+    if (month) params.set('month', month);
+    const query = params.toString();
+    return request(`/invoices${query ? `?${query}` : ''}`);
+  },
+
+  downloadInvoice: (id) => requestBlob(`/invoices/${id}/download`),
+
   getMovementExports: (userId, type, month) => {
     const params = new URLSearchParams();
     if (userId) params.set('userId', userId);

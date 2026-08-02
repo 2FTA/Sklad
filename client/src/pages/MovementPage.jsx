@@ -428,6 +428,33 @@ function MovementPage() {
       const toName = getPositionName(toUserId);
       const dateText = formatInvoiceDate(todayDate);
 
+      const sourceKey = movementType === 'shipment' ? toUserId : fromUserId;
+      const sourceParsed = parsePositionKey(sourceKey);
+
+      if (sourceParsed?.kind !== 'user') {
+        throw new Error('Накладная доступна только для магазинов');
+      }
+
+      const fromParsed = parsePositionKey(fromUserId);
+      const fromShopId =
+        movementType !== 'shipment' && fromParsed?.kind === 'user' ? fromParsed.id : null;
+
+      await api.saveInvoice({
+        shopId: sourceParsed.id,
+        type: movementType,
+        fromShopId,
+        fromName,
+        toName,
+        items: movementData.map((item) => ({
+          productId: item.productId,
+          productName: item.productName,
+          unit: item.unit,
+          quantity: item.quantity,
+          price: item.price ?? 0,
+          sum: (item.quantity || 0) * (item.price || 0),
+        })),
+      });
+
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Накладная');
 
@@ -465,21 +492,7 @@ function MovementPage() {
       });
 
       saveAs(fileBlob, fileName);
-
-      const sourceKey = movementType === 'shipment' ? toUserId : fromUserId;
-      const sourceParsed = parsePositionKey(sourceKey);
-
-      if (sourceParsed?.kind === 'user') {
-        const month = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-01`;
-        await api.uploadMovementExport(
-          sourceParsed.id,
-          movementType,
-          month,
-          fileBlob,
-          fileName
-        );
-        showToast('Файл сохранён и доступен в отчетах', 'success');
-      }
+      showToast('Файл сохранён и доступен в отчетах', 'success');
 
       /*
       // PDF export (legacy)

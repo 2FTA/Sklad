@@ -14,6 +14,7 @@ const customPositionsRoutes = require('./routes/customPositions');
 const summaryRoutes = require('./routes/summary');
 const movementExportsRoutes = require('./routes/movementExports');
 const inventoryRoutes = require('./routes/inventory');
+const invoicesRoutes = require('./routes/invoices');
 
 const globalProductsRoutes = require('./routes/globalProducts');
 
@@ -34,6 +35,7 @@ app.use('/api/custom-positions', customPositionsRoutes);
 app.use('/api/summary', summaryRoutes);
 app.use('/api/movement-exports', movementExportsRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/invoices', invoicesRoutes);
 
 app.use('/auth', authRoutes);
 app.use('/users', usersRoutes);
@@ -46,6 +48,7 @@ app.use('/custom-positions', customPositionsRoutes);
 app.use('/summary', summaryRoutes);
 app.use('/movement-exports', movementExportsRoutes);
 app.use('/inventory', inventoryRoutes);
+app.use('/invoices', invoicesRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
