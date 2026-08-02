@@ -5,6 +5,7 @@ const {
   receiveInventory,
   consumeInventory,
 } = require('../utils/inventoryService');
+const { buildInvoicePayload } = require('../utils/invoicePayload');
 
 const router = express.Router();
 
@@ -60,94 +61,58 @@ router.post('/invoice', async (req, res) => {
   });
 
   const totalSum = normalizedItems.reduce((acc, item) => acc + item.sum, 0);
-
-  const client = await pool.connect();
+  const invoicePayload = buildInvoicePayload(fromName, toName, normalizedItems);
 
   try {
-    await client.query('BEGIN');
-
-    const shop = await client.query(
-      `SELECT id FROM users WHERE id = $1 AND role = 'user'`,
-      [shopId]
-    );
+    const shop = await pool.query(`SELECT id FROM users WHERE id = $1 AND role = 'user'`, [shopId]);
 
     if (shop.rows.length === 0) {
-      throw new Error('Магазин не найден');
+      return res.status(400).json({ error: 'Магазин не найден' });
     }
 
     if (fromShopId !== null && !Number.isNaN(fromShopId)) {
-      const fromShop = await client.query(
+      const fromShop = await pool.query(
         `SELECT id FROM users WHERE id = $1 AND role = 'user'`,
         [fromShopId]
       );
 
       if (fromShop.rows.length === 0) {
-        throw new Error('Магазин-отправитель не найден');
+        return res.status(400).json({ error: 'Магазин-отправитель не найден' });
       }
     }
 
-    const invoiceResult = await client.query(
-      `INSERT INTO invoices (shop_id, type, date, from_shop_id, from_name, to_name, total_sum)
-       VALUES ($1, $2, CURRENT_DATE, $3, $4, $5, $6)
+    const invoiceResult = await pool.query(
+      `INSERT INTO invoices (shop_id, type, date, items, total_sum, from_shop_id)
+       VALUES ($1, $2, CURRENT_DATE, $3::jsonb, $4, $5)
        ON CONFLICT (shop_id, type, date)
        DO UPDATE SET
-         from_shop_id = EXCLUDED.from_shop_id,
-         from_name = EXCLUDED.from_name,
-         to_name = EXCLUDED.to_name,
+         items = EXCLUDED.items,
          total_sum = EXCLUDED.total_sum,
+         from_shop_id = EXCLUDED.from_shop_id,
          updated_at = NOW()
        RETURNING id,
                  shop_id AS "shopId",
                  type,
                  date::text AS date,
                  from_shop_id AS "fromShopId",
-                 from_name AS "fromName",
-                 to_name AS "toName",
                  total_sum AS "totalSum",
                  created_at AS "createdAt",
                  updated_at AS "updatedAt"`,
       [
         shopId,
         type,
-        fromShopId !== null && !Number.isNaN(fromShopId) ? fromShopId : null,
-        fromName,
-        toName,
+        JSON.stringify(invoicePayload),
         totalSum,
+        fromShopId !== null && !Number.isNaN(fromShopId) ? fromShopId : null,
       ]
     );
 
-    const invoiceId = invoiceResult.rows[0].id;
-
-    await client.query('DELETE FROM invoice_items WHERE invoice_id = $1', [invoiceId]);
-
-    for (const item of normalizedItems) {
-      await client.query(
-        `INSERT INTO invoice_items
-           (invoice_id, product_id, product_name, unit, quantity, price, line_sum, sort_order)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [
-          invoiceId,
-          item.productId,
-          item.productName,
-          item.unit,
-          item.quantity,
-          item.price,
-          item.sum,
-          item.sortOrder,
-        ]
-      );
-    }
-
-    await client.query('COMMIT');
     res.json(invoiceResult.rows[0]);
   } catch (err) {
-    await client.query('ROLLBACK');
     console.error(err);
     const message = err.message || 'Ошибка сервера';
     const status = message.includes('не найден') ? 400 : 500;
     res.status(status).json({ error: message });
-  } finally {
-    client.release();
   }
 });
 

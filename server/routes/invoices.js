@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const { authMiddleware, adminOnly } = require('../middleware/auth');
 const { generateInvoiceExcelBuffer, buildInvoiceFileName } = require('../utils/invoiceExcel');
+const { parseInvoicePayload } = require('../utils/invoicePayload');
 
 const router = express.Router();
 
@@ -10,18 +11,22 @@ const MONTH_PATTERN = /^\d{4}-\d{2}$/;
 
 router.use(authMiddleware, adminOnly);
 
-function normalizeMonth(value) {
-  if (!value || !MONTH_PATTERN.test(value)) {
+function getMonthRange(monthValue) {
+  if (!monthValue || !MONTH_PATTERN.test(monthValue)) {
     return null;
   }
 
-  return `${value}-01`;
+  const startDate = `${monthValue}-01`;
+  const [year, month] = monthValue.split('-').map(Number);
+  const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+
+  return { startDate, endDate };
 }
 
 router.get('/', async (req, res) => {
   const shopId = req.query.shopId ? parseInt(req.query.shopId, 10) : null;
   const type = req.query.type;
-  const month = normalizeMonth(req.query.month);
+  const monthRange = getMonthRange(req.query.month);
 
   if (!shopId || isNaN(shopId)) {
     return res.status(400).json({ error: 'Укажите магазин' });
@@ -31,29 +36,26 @@ router.get('/', async (req, res) => {
     return res.status(400).json({ error: 'Укажите тип движения' });
   }
 
-  if (!month) {
+  if (!monthRange) {
     return res.status(400).json({ error: 'Укажите месяц в формате YYYY-MM' });
   }
 
   try {
     const result = await pool.query(
-      `SELECT id,
-              shop_id AS "shopId",
-              type,
-              date::text AS date,
-              from_shop_id AS "fromShopId",
-              from_name AS "fromName",
-              to_name AS "toName",
-              total_sum AS "totalSum",
-              created_at AS "createdAt",
-              updated_at AS "updatedAt"
-       FROM invoices
-       WHERE shop_id = $1
-         AND type = $2
-         AND date >= $3::date
-         AND date < ($3::date + INTERVAL '1 month')
-       ORDER BY date DESC, id DESC`,
-      [shopId, type, month]
+      `SELECT i.id,
+              i.date::text AS date,
+              i.type,
+              i.total_sum AS "totalSum",
+              u.login AS "shopName",
+              u2.login AS "fromShopName"
+       FROM invoices i
+       LEFT JOIN users u ON i.shop_id = u.id
+       LEFT JOIN users u2 ON i.from_shop_id = u2.id
+       WHERE i.shop_id = $1
+         AND i.type = $2
+         AND i.date BETWEEN $3::date AND $4::date
+       ORDER BY i.date DESC, i.id DESC`,
+      [shopId, type, monthRange.startDate, monthRange.endDate]
     );
 
     res.json(result.rows);
@@ -76,9 +78,9 @@ router.get('/:id/download', async (req, res) => {
               shop_id AS "shopId",
               type,
               date::text AS date,
-              from_name AS "fromName",
-              to_name AS "toName",
-              total_sum AS "totalSum"
+              items,
+              total_sum AS "totalSum",
+              from_shop_id AS "fromShopId"
        FROM invoices
        WHERE id = $1`,
       [id]
@@ -88,26 +90,22 @@ router.get('/:id/download', async (req, res) => {
       return res.status(404).json({ error: 'Накладная не найдена' });
     }
 
-    const invoice = invoiceResult.rows[0];
+    const row = invoiceResult.rows[0];
+    const payload = parseInvoicePayload(row.items);
 
-    const itemsResult = await pool.query(
-      `SELECT product_id AS "productId",
-              product_name AS "productName",
-              unit,
-              quantity,
-              price,
-              line_sum AS sum
-       FROM invoice_items
-       WHERE invoice_id = $1
-       ORDER BY sort_order ASC, id ASC`,
-      [id]
-    );
-
-    if (itemsResult.rows.length === 0) {
+    if (payload.items.length === 0) {
       return res.status(404).json({ error: 'Позиции накладной не найдены' });
     }
 
-    const buffer = await generateInvoiceExcelBuffer(invoice, itemsResult.rows);
+    const invoice = {
+      type: row.type,
+      date: row.date,
+      fromName: payload.fromName,
+      toName: payload.toName,
+      totalSum: row.totalSum,
+    };
+
+    const buffer = await generateInvoiceExcelBuffer(invoice, payload.items);
     const fileName = buildInvoiceFileName(invoice.date);
 
     res.setHeader(

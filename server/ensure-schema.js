@@ -118,10 +118,9 @@ async function ensureInvoicesSchema(pool) {
       shop_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       type VARCHAR(20) NOT NULL CHECK (type IN ('movement', 'return', 'shipment')),
       date DATE NOT NULL DEFAULT CURRENT_DATE,
-      from_shop_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-      from_name VARCHAR(255) NOT NULL,
-      to_name VARCHAR(255) NOT NULL,
+      items JSONB NOT NULL DEFAULT '[]'::jsonb,
       total_sum INTEGER NOT NULL DEFAULT 0,
+      from_shop_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
       created_at TIMESTAMP NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
       UNIQUE (shop_id, type, date)
@@ -129,17 +128,20 @@ async function ensureInvoicesSchema(pool) {
   `);
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS invoice_items (
-      id SERIAL PRIMARY KEY,
-      invoice_id INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
-      product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
-      product_name VARCHAR(255) NOT NULL,
-      unit VARCHAR(20),
-      quantity INTEGER NOT NULL DEFAULT 0,
-      price INTEGER NOT NULL DEFAULT 0,
-      line_sum INTEGER NOT NULL DEFAULT 0,
-      sort_order INTEGER NOT NULL DEFAULT 0
-    )
+    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS items JSONB NOT NULL DEFAULT '[]'::jsonb
+  `);
+
+  await pool.query(`
+    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS from_shop_id INTEGER REFERENCES users(id) ON DELETE SET NULL
+  `);
+
+  await pool.query(`
+    ALTER TABLE invoices ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_shop_type_date
+    ON invoices (shop_id, type, date)
   `);
 }
 
