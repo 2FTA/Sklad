@@ -1,0 +1,29 @@
+.errors-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-shrink: 0;
+}
+
+.errors-table-wrapper {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.errors-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f1f5f9;
+}
+
+.errors-time-col {
+  width: 180px;
+  white-space: nowrap;
+}
+
+.errors-table td:last-child {
+  word-break: break-word;
+}

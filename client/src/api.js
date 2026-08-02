@@ -1,3 +1,5 @@
+import { logError } from './utils/errorLogger';
+
 // Берем адрес сервера из переменной окружения или используем относительный путь
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -13,11 +15,21 @@ async function request(url, options = {}) {
     ...options.headers,
   };
 
-  const res = await fetch(`${API_BASE}${url}`, { ...options, headers });
+  let res;
+
+  try {
+    res = await fetch(`${API_BASE}${url}`, { ...options, headers });
+  } catch {
+    logError('Network Error');
+    throw new Error('Network Error');
+  }
+
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new Error(data.error || 'Ошибка запроса');
+    const message = data.error || 'Ошибка запроса';
+    logError(message);
+    throw new Error(message);
   }
 
   return data;
@@ -25,13 +37,23 @@ async function request(url, options = {}) {
 
 async function requestBlob(url) {
   const token = getToken();
-  const res = await fetch(`${API_BASE}${url}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+
+  let res;
+
+  try {
+    res = await fetch(`${API_BASE}${url}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  } catch {
+    logError('Network Error');
+    throw new Error('Network Error');
+  }
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || 'Ошибка запроса');
+    const message = data.error || 'Ошибка запроса';
+    logError(message);
+    throw new Error(message);
   }
 
   return res.blob();
@@ -234,15 +256,25 @@ export const api = {
     formData.append('file', fileBlob, fileName);
 
     const token = getToken();
-    const res = await fetch(`${API_BASE}/movement-exports`, {
-      method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: formData,
-    });
+    let res;
+
+    try {
+      res = await fetch(`${API_BASE}/movement-exports`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+    } catch {
+      logError('Network Error');
+      throw new Error('Network Error');
+    }
+
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      throw new Error(data.error || 'Ошибка загрузки файла');
+      const message = data.error || 'Ошибка загрузки файла';
+      logError(message);
+      throw new Error(message);
     }
 
     return data;

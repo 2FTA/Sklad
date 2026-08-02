@@ -7,7 +7,9 @@ import ProductsManagement from './pages/ProductsManagement';
 import ReportsPage from './pages/ReportsPage';
 import MovementPage from './pages/MovementPage';
 import ExpiredPage from './pages/ExpiredPage';
+import ErrorsPage from './pages/ErrorsPage';
 import AdminRoute from './components/AdminRoute';
+import GlobalErrorHandlers from './components/GlobalErrorHandlers';
 import { ToastProvider } from './components/ToastContext';
 import { getStoredUser } from './api';
 
@@ -24,6 +26,7 @@ function Home() {
 function App() {
   return (
     <ToastProvider>
+      <GlobalErrorHandlers />
       <Routes>
       <Route path="/login" element={<Login />} />
       <Route
@@ -71,6 +74,14 @@ function App() {
         element={
           <AdminRoute>
             <ReportsPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/errors"
+        element={
+          <AdminRoute>
+            <ErrorsPage />
           </AdminRoute>
         }
       />

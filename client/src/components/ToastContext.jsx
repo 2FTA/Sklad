@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useState } from 'react';
 import Toast from './Toast';
+import { logError } from '../utils/errorLogger';
 
 const ToastContext = createContext(null);
 
@@ -8,6 +9,9 @@ export function ToastProvider({ children }) {
 
   const showToast = useCallback((message, type = 'success') => {
     if (!message) return;
+    if (type === 'error') {
+      logError(message);
+    }
     setToast({ message, type, id: Date.now() });
   }, []);
 

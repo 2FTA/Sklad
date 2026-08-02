@@ -62,6 +62,12 @@ function AdminTopBar({ title, onMenuClick, leftExtra }) {
         >
           Управление товарами
         </Link>
+        <Link
+          to="/errors"
+          className={`btn-nav ${location.pathname === '/errors' ? 'active' : ''}`}
+        >
+          Ошибки
+        </Link>
         <button className="btn-logout" onClick={handleLogout}>
           Выйти
         </button>
