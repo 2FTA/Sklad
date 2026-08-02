@@ -59,6 +59,10 @@ async function ensureGlobalProductsSchema(pool) {
   await pool.query(`
     ALTER TABLE global_products ADD COLUMN IF NOT EXISTS shelf_life INTEGER NOT NULL DEFAULT 0
   `);
+
+  await pool.query(`
+    ALTER TABLE global_products ADD COLUMN IF NOT EXISTS warning_period INTEGER NOT NULL DEFAULT 0
+  `);
 }
 
 async function ensureCustomPositionsSchema(pool) {

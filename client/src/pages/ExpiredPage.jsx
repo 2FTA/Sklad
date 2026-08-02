@@ -69,7 +69,7 @@ function ExpiredPage() {
                   <th>Наименование</th>
                   <th className="text-center">Количество</th>
                   <th>Дата отгрузки</th>
-                  <th className="text-center">Дней просрочено</th>
+                  <th className="text-center">Дней до просрочки</th>
                 </tr>
               </thead>
               <tbody>
@@ -79,7 +79,7 @@ function ExpiredPage() {
                     <td>{item.productName}</td>
                     <td className="text-center expired-num">{item.quantity}</td>
                     <td>{formatDisplayDate(item.receivedDate)}</td>
-                    <td className="text-center expired-overdue">{item.daysOverdue}</td>
+                    <td className="text-center expired-overdue">{item.daysUntilExpiry}</td>
                   </tr>
                 ))}
               </tbody>

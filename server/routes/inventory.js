@@ -74,7 +74,10 @@ router.get('/expired', async (req, res) => {
       productName: row.productname || row.product_name || row.productName,
       quantity: row.quantity,
       receivedDate: row.receiveddate || row.received_date || row.receivedDate,
-      daysOverdue: row.daysoverdue ?? row.days_overdue ?? row.daysOverdue,
+      daysUntilExpiry:
+        row.daysuntilexpiry ??
+        row.days_until_expiry ??
+        row.daysUntilExpiry,
     }));
 
     res.json(rows);

@@ -15,6 +15,7 @@ function ProductsManagement() {
   const [orderInputs, setOrderInputs] = useState({});
   const [priceInputs, setPriceInputs] = useState({});
   const [shelfLifeInputs, setShelfLifeInputs] = useState({});
+  const [warningPeriodInputs, setWarningPeriodInputs] = useState({});
 
   const flash = (msg) => {
     showToast(msg, 'success');
@@ -28,14 +29,17 @@ function ProductsManagement() {
       const inputs = {};
       const prices = {};
       const shelfLives = {};
+      const warningPeriods = {};
       data.forEach((p) => {
         inputs[p.id] = p.order_index;
         prices[p.id] = p.price ?? 0;
         shelfLives[p.id] = p.shelf_life ?? 0;
+        warningPeriods[p.id] = p.warning_period ?? 0;
       });
       setOrderInputs(inputs);
       setPriceInputs(prices);
       setShelfLifeInputs(shelfLives);
+      setWarningPeriodInputs(warningPeriods);
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
@@ -194,6 +198,56 @@ function ProductsManagement() {
     }
   };
 
+  const handleWarningPeriodChange = (productId, value) => {
+    setWarningPeriodInputs({ ...warningPeriodInputs, [productId]: value });
+  };
+
+  const handleWarningPeriodSave = async (productId) => {
+    const product = products.find((p) => p.id === productId);
+    if (!product) return;
+
+    const shelfLife = product.shelf_life ?? 0;
+    if (shelfLife === 0) return;
+
+    const raw = warningPeriodInputs[productId];
+    if (raw === undefined || raw === '') return;
+
+    const warningPeriodNum = parseInt(raw, 10);
+    if (isNaN(warningPeriodNum) || warningPeriodNum < 0) {
+      showToast('Предупреждение должно быть неотрицательным целым числом', 'error');
+      setWarningPeriodInputs({
+        ...warningPeriodInputs,
+        [productId]: product.warning_period ?? 0,
+      });
+      return;
+    }
+
+    if (warningPeriodNum > shelfLife - 1) {
+      showToast('Не может превышать срок хранения -1', 'error');
+      setWarningPeriodInputs({
+        ...warningPeriodInputs,
+        [productId]: product.warning_period ?? 0,
+      });
+      return;
+    }
+
+    if (warningPeriodNum === (product.warning_period ?? 0)) return;
+
+    try {
+      await api.updateGlobalProduct(productId, {
+        warning_period: warningPeriodNum,
+      });
+      flash('Предупреждение обновлено');
+      await loadProducts();
+    } catch (err) {
+      showToast(err.message, 'error');
+      setWarningPeriodInputs({
+        ...warningPeriodInputs,
+        [productId]: product.warning_period ?? 0,
+      });
+    }
+  };
+
   return (
     <div className="page-layout">
       <AdminTopBar title="Управление товарами" />
@@ -210,6 +264,7 @@ function ProductsManagement() {
                 <tr>
                   <th>Название</th>
                   <th>Срок хранения</th>
+                  <th>Предупреждение</th>
                   <th>Цена</th>
                   <th>Литраж</th>
                   <th>Порядок</th>
@@ -253,6 +308,18 @@ function ProductsManagement() {
                         value={shelfLifeInputs[product.id] ?? product.shelf_life ?? 0}
                         onChange={(e) => handleShelfLifeChange(product.id, e.target.value)}
                         onBlur={() => handleShelfLifeSave(product.id)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        className="warning-period-input"
+                        min="0"
+                        step="1"
+                        value={warningPeriodInputs[product.id] ?? product.warning_period ?? 0}
+                        disabled={(product.shelf_life ?? 0) === 0}
+                        onChange={(e) => handleWarningPeriodChange(product.id, e.target.value)}
+                        onBlur={() => handleWarningPeriodSave(product.id)}
                       />
                     </td>
                     <td>

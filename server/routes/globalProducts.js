@@ -21,10 +21,33 @@ async function renumberAll(client) {
 
 const VALID_WEIGHTS = ['1л', '0.3'];
 
+function parseNonNegativeInt(value, fieldLabel) {
+  const num = parseInt(value, 10);
+  if (isNaN(num) || num < 0) {
+    return { error: `${fieldLabel} должно быть неотрицательным целым числом` };
+  }
+  return { value: num };
+}
+
+function validateWarningPeriod(warningPeriod, shelfLife) {
+  if (shelfLife === 0) {
+    if (warningPeriod !== 0) {
+      return { error: 'Не может превышать срок хранения -1' };
+    }
+    return { ok: true };
+  }
+
+  if (warningPeriod > shelfLife - 1) {
+    return { error: 'Не может превышать срок хранения -1' };
+  }
+
+  return { ok: true };
+}
+
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT gp.id, gp.name, gp.order_index, gp.weight, gp.price, gp.shelf_life,
+      SELECT gp.id, gp.name, gp.order_index, gp.weight, gp.price, gp.shelf_life, gp.warning_period,
              COALESCE(SUM(ds.quantity) FILTER (WHERE u.role = 'user'), 0)::int AS total_quantity
       FROM global_products gp
       LEFT JOIN products p ON p.global_product_id = gp.id
@@ -41,7 +64,7 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { name, shelf_life: shelfLifeBody } = req.body;
+  const { name, shelf_life: shelfLifeBody, warning_period: warningPeriodBody } = req.body;
 
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'Укажите название товара' });
@@ -51,10 +74,25 @@ router.post('/', async (req, res) => {
   let shelfLife = 0;
 
   if (shelfLifeBody !== undefined && shelfLifeBody !== null && shelfLifeBody !== '') {
-    shelfLife = parseInt(shelfLifeBody, 10);
-    if (isNaN(shelfLife) || shelfLife < 0) {
-      return res.status(400).json({ error: 'Срок хранения должен быть неотрицательным числом' });
+    const parsedShelfLife = parseNonNegativeInt(shelfLifeBody, 'Срок хранения');
+    if (parsedShelfLife.error) {
+      return res.status(400).json({ error: parsedShelfLife.error });
     }
+    shelfLife = parsedShelfLife.value;
+  }
+
+  let warningPeriod = 0;
+  if (warningPeriodBody !== undefined && warningPeriodBody !== null && warningPeriodBody !== '') {
+    const parsedWarningPeriod = parseNonNegativeInt(warningPeriodBody, 'Предупреждение');
+    if (parsedWarningPeriod.error) {
+      return res.status(400).json({ error: parsedWarningPeriod.error });
+    }
+    warningPeriod = parsedWarningPeriod.value;
+  }
+
+  const warningValidation = validateWarningPeriod(warningPeriod, shelfLife);
+  if (warningValidation.error) {
+    return res.status(400).json({ error: warningValidation.error });
   }
 
   try {
@@ -78,9 +116,10 @@ router.post('/', async (req, res) => {
       const orderIndex = maxResult.rows[0].max_order + 1;
 
       const created = await client.query(
-        `INSERT INTO global_products (name, order_index, weight, price, shelf_life)
-         VALUES ($1, $2, '1л', 0, $3) RETURNING id, name, order_index, weight, price, shelf_life`,
-        [trimmedName, orderIndex, shelfLife]
+        `INSERT INTO global_products (name, order_index, weight, price, shelf_life, warning_period)
+         VALUES ($1, $2, '1л', 0, $3, $4)
+         RETURNING id, name, order_index, weight, price, shelf_life, warning_period`,
+        [trimmedName, orderIndex, shelfLife, warningPeriod]
       );
 
       const globalProduct = created.rows[0];
@@ -161,26 +200,37 @@ router.put('/:id/order', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const { name, weight, price, shelf_life: shelfLifeBody } = req.body;
+  const {
+    name,
+    weight,
+    price,
+    shelf_life: shelfLifeBody,
+    warning_period: warningPeriodBody,
+  } = req.body;
 
   if (
     name === undefined &&
     weight === undefined &&
     price === undefined &&
-    shelfLifeBody === undefined
+    shelfLifeBody === undefined &&
+    warningPeriodBody === undefined
   ) {
-    return res.status(400).json({ error: 'Укажите название, литраж, цену или срок хранения' });
+    return res.status(400).json({ error: 'Укажите название, литраж, цену, срок хранения или предупреждение' });
   }
 
   try {
     const existing = await pool.query(
-      'SELECT id, name FROM global_products WHERE id = $1',
+      'SELECT id, name, shelf_life, warning_period FROM global_products WHERE id = $1',
       [id]
     );
 
     if (existing.rows.length === 0) {
       return res.status(404).json({ error: 'Товар не найден' });
     }
+
+    const current = existing.rows[0];
+    let nextShelfLife = current.shelf_life ?? 0;
+    let nextWarningPeriod = current.warning_period ?? 0;
 
     const updates = [];
     const values = [];
@@ -225,20 +275,43 @@ router.put('/:id', async (req, res) => {
     }
 
     if (shelfLifeBody !== undefined) {
-      const shelfLifeNum = parseInt(shelfLifeBody, 10);
-      if (isNaN(shelfLifeNum) || shelfLifeNum < 0) {
-        return res.status(400).json({ error: 'Срок хранения должен быть неотрицательным числом' });
+      const parsedShelfLife = parseNonNegativeInt(shelfLifeBody, 'Срок хранения');
+      if (parsedShelfLife.error) {
+        return res.status(400).json({ error: parsedShelfLife.error });
       }
 
+      nextShelfLife = parsedShelfLife.value;
       updates.push(`shelf_life = $${paramIndex++}`);
-      values.push(shelfLifeNum);
+      values.push(nextShelfLife);
+
+      if (nextShelfLife === 0 && warningPeriodBody === undefined) {
+        nextWarningPeriod = 0;
+        updates.push(`warning_period = $${paramIndex++}`);
+        values.push(0);
+      }
+    }
+
+    if (warningPeriodBody !== undefined) {
+      const parsedWarningPeriod = parseNonNegativeInt(warningPeriodBody, 'Предупреждение');
+      if (parsedWarningPeriod.error) {
+        return res.status(400).json({ error: parsedWarningPeriod.error });
+      }
+
+      nextWarningPeriod = parsedWarningPeriod.value;
+      updates.push(`warning_period = $${paramIndex++}`);
+      values.push(nextWarningPeriod);
+    }
+
+    const warningValidation = validateWarningPeriod(nextWarningPeriod, nextShelfLife);
+    if (warningValidation.error) {
+      return res.status(400).json({ error: warningValidation.error });
     }
 
     values.push(id);
 
     const result = await pool.query(
       `UPDATE global_products SET ${updates.join(', ')}
-       WHERE id = $${paramIndex} RETURNING id, name, order_index, weight, price, shelf_life`,
+       WHERE id = $${paramIndex} RETURNING id, name, order_index, weight, price, shelf_life, warning_period`,
       values
     );
 

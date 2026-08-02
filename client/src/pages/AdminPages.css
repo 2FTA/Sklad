@@ -97,6 +97,26 @@
   border-color: #2563eb;
 }
 
+.warning-period-input {
+  width: 72px;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.warning-period-input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.warning-period-input:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
 .weight-select {
   padding: 0.4rem 0.5rem;
   border: 1px solid #cbd5e1;
