@@ -138,8 +138,7 @@ router.post('/', async (req, res) => {
             targetUserId,
             date,
             beforeStock,
-            item,
-            savedRow
+            item
           );
         } else {
           throw new Error('Некорректные данные остатков');
