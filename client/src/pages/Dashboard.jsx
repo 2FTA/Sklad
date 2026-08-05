@@ -63,7 +63,7 @@ function Dashboard() {
     return map;
   }, [stocks]);
 
-  const storeTotal = useMemo(() => {
+  const totalOnStore = useMemo(() => {
     return userProducts.reduce((sum, product) => {
       if (productWeightMap[product.id] !== '1л') {
         return sum;
@@ -72,16 +72,30 @@ function Dashboard() {
       const key = `${product.id}-${todayStr}`;
       const cell = stockMap[key];
       const quantity = parseInt(cell?.quantity ?? 0, 10) || 0;
+
+      return sum + quantity;
+    }, 0);
+  }, [userProducts, productWeightMap, stockMap, todayStr]);
+
+  const totalShipments = useMemo(() => {
+    return userProducts.reduce((sum, product) => {
+      if (productWeightMap[product.id] !== '1л') {
+        return sum;
+      }
+
+      const key = `${product.id}-${todayStr}`;
+      const cell = stockMap[key];
       const shipments =
         shipmentInputs[key] !== undefined
           ? parseInt(shipmentInputs[key], 10) || 0
           : parseInt(cell?.shipments ?? 0, 10) || 0;
 
-      return sum + quantity + shipments;
+      return sum + shipments;
     }, 0);
   }, [userProducts, productWeightMap, stockMap, shipmentInputs, todayStr]);
 
-  const freeSpace = storeCapacity !== null ? storeCapacity - storeTotal : null;
+  const freeSpace =
+    storeCapacity !== null ? storeCapacity - totalOnStore - totalShipments : null;
 
   const loadUsers = useCallback(async () => {
     try {
@@ -718,7 +732,11 @@ function Dashboard() {
       <div className="table-panel">
         <div className="store-total">
           <span>
-            На магазине: <strong>{storeTotal}</strong>
+            На магазине: <strong>{totalOnStore}</strong>
+          </span>
+          <span className="store-stat-divider" />
+          <span>
+            Отгрузка: <strong>{totalShipments}</strong>
           </span>
           {storeCapacity !== null && (
             <>
