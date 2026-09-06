@@ -561,7 +561,13 @@
   min-width: 600px;
 }
 
+.stock-grid-table th,
+.stock-grid-table td {
+  border: 1px solid rgba(0, 0, 0, 0.4);
+}
+
 .stock-grid-table thead th {
+  text-align: center;
   position: sticky;
   top: 0;
   z-index: 30;

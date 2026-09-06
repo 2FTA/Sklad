@@ -158,6 +158,12 @@
   min-width: 800px;
 }
 
+.summary-table th,
+.summary-table td {
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  text-align: center;
+}
+
 .summary-table-panel {
   flex: 1;
   min-height: 0;
