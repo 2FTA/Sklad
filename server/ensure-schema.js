@@ -177,27 +177,29 @@ async function ensureInventoryLotsSchema(pool) {
   await pool.query(`
     CREATE OR REPLACE FUNCTION get_expired_lots()
     RETURNS TABLE (
+      lot_id INTEGER,
       shop_name TEXT,
       product_name TEXT,
       quantity INTEGER,
       received_date DATE,
-      days_overdue INTEGER
+      days_until_expiry INTEGER
     )
     LANGUAGE plpgsql
     AS $$
     BEGIN
       RETURN QUERY
       SELECT
+        il.id AS lot_id,
         u.login::TEXT AS shop_name,
         gp.name::TEXT AS product_name,
         il.quantity,
         il.received_date,
-        (CURRENT_DATE - il.expiration_date)::INTEGER AS days_overdue
+        (il.expiration_date - CURRENT_DATE)::INTEGER AS days_until_expiry
       FROM inventory_lots il
       JOIN global_products gp ON gp.id = il.product_id
       JOIN users u ON u.id = il.shop_id
       WHERE il.quantity > 0
-        AND il.expiration_date < CURRENT_DATE
+        AND il.expiration_date - gp.warning_period <= CURRENT_DATE
       ORDER BY il.received_date, u.login, gp.name;
     END;
     $$

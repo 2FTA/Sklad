@@ -176,6 +176,7 @@ router.get('/expired', async (req, res) => {
     const result = await pool.query('SELECT * FROM get_expired_lots()');
 
     const rows = result.rows.map((row) => ({
+      lotId: row.lot_id ?? row.lotid ?? row.lotId ?? row.id,
       shopName: row.shopname || row.shop_name || row.shopName,
       productName: row.productname || row.product_name || row.productName,
       quantity: row.quantity,
@@ -187,6 +188,30 @@ router.get('/expired', async (req, res) => {
     }));
 
     res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+router.delete('/expired/:lotId', async (req, res) => {
+  const lotId = parseInt(req.params.lotId, 10);
+
+  if (isNaN(lotId)) {
+    return res.status(400).json({ error: 'Некорректный идентификатор партии' });
+  }
+
+  try {
+    const result = await pool.query(
+      'DELETE FROM inventory_lots WHERE id = $1 RETURNING id',
+      [lotId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Партия не найдена' });
+    }
+
+    res.json({ success: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка сервера' });

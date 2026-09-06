@@ -210,6 +210,9 @@ export const api = {
 
   getExpiredLots: () => request('/inventory/expired'),
 
+  deleteExpiredLot: (lotId) =>
+    request(`/inventory/expired/${lotId}`, { method: 'DELETE' }),
+
   receiveInventory: (productId, shopId, quantity) =>
     request('/inventory/receive', {
       method: 'POST',

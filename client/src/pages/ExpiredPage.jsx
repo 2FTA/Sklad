@@ -22,6 +22,7 @@ function ExpiredPage() {
   const { showToast } = useToast();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deletingLotId, setDeletingLotId] = useState(null);
 
   const loadExpired = useCallback(async () => {
     setLoading(true);
@@ -39,6 +40,25 @@ function ExpiredPage() {
   useEffect(() => {
     loadExpired();
   }, [loadExpired]);
+
+  const handleDelete = async (lotId) => {
+    if (!lotId) {
+      showToast('Не удалось определить партию', 'error');
+      return;
+    }
+
+    setDeletingLotId(lotId);
+
+    try {
+      await api.deleteExpiredLot(lotId);
+      showToast('Просрочка удалена', 'success');
+      await loadExpired();
+    } catch (err) {
+      showToast(err.message || 'Ошибка удаления', 'error');
+    } finally {
+      setDeletingLotId(null);
+    }
+  };
 
   return (
     <div className="page-layout">
@@ -70,16 +90,27 @@ function ExpiredPage() {
                   <th className="text-center">Количество</th>
                   <th>Дата отгрузки</th>
                   <th className="text-center">Дней до просрочки</th>
+                  <th className="text-center">Действия</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item, index) => (
-                  <tr key={`${item.shopName}-${item.productName}-${item.receivedDate}-${index}`}>
+                  <tr key={item.lotId ?? `${item.shopName}-${item.productName}-${item.receivedDate}-${index}`}>
                     <td>{item.shopName}</td>
                     <td>{item.productName}</td>
                     <td className="text-center expired-num">{item.quantity}</td>
                     <td>{formatDisplayDate(item.receivedDate)}</td>
                     <td className="text-center expired-overdue">{item.daysUntilExpiry}</td>
+                    <td className="text-center expired-actions">
+                      <button
+                        type="button"
+                        className="btn-sm btn-delete"
+                        onClick={() => handleDelete(item.lotId)}
+                        disabled={deletingLotId === item.lotId}
+                      >
+                        {deletingLotId === item.lotId ? 'Удаление...' : 'Удалить'}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

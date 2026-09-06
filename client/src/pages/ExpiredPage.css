@@ -28,3 +28,7 @@
   z-index: 1;
   background: #f1f5f9;
 }
+
+.expired-actions {
+  white-space: nowrap;
+}
