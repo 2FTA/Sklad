@@ -21,7 +21,24 @@ function PrivateRoute({ children }) {
 
 function Home() {
   const user = getStoredUser();
-  return user?.role === 'admin' ? <Dashboard /> : <UserPage />;
+  if (user?.role === 'admin') {
+    return <Dashboard />;
+  }
+  return <Navigate to="/user" replace />;
+}
+
+function UserRoute({ children }) {
+  const user = getStoredUser();
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.role === 'admin') {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
 }
 
 function App() {
@@ -36,6 +53,16 @@ function App() {
         element={
           <PrivateRoute>
             <Home />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/user"
+        element={
+          <PrivateRoute>
+            <UserRoute>
+              <UserPage />
+            </UserRoute>
           </PrivateRoute>
         }
       />

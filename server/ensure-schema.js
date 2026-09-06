@@ -15,6 +15,10 @@ async function ensureUsersSchema(pool) {
   await pool.query(`
     ALTER TABLE users ADD COLUMN IF NOT EXISTS capacity INTEGER DEFAULT 1000
   `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS users_motor_role_unique ON users (role) WHERE role = 'motor'
+  `);
 }
 
 async function ensureDailyStocksSchema(pool) {

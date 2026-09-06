@@ -18,7 +18,7 @@ function Login() {
     try {
       const data = await api.login(login, password);
       saveAuth(data.token, data.user);
-      navigate('/');
+      navigate(data.user.role === 'admin' ? '/' : '/user');
     } catch (err) {
       setError(err.message || 'Неверный логин или пароль');
     } finally {

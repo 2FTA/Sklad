@@ -44,7 +44,70 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Укажите список остатков' });
   }
 
+  if (req.user.role === 'motor') {
+    if (req.user.id !== targetUserId) {
+      return res.status(403).json({ error: 'Доступ запрещён' });
+    }
+
+    const client = await pool.connect();
+    const saved = [];
+
+    try {
+      await client.query('BEGIN');
+
+      for (const item of stocks) {
+        const productId = parseInt(item.productId, 10);
+
+        if (isNaN(productId)) {
+          throw new Error('Некорректные данные остатков');
+        }
+
+        const product = await client.query(
+          'SELECT id FROM global_products WHERE id = $1',
+          [productId]
+        );
+
+        if (product.rows.length === 0) {
+          throw new Error(`Товар ${productId} не найден`);
+        }
+
+        const quantity = parseInt(item.quantity, 10);
+
+        if (isNaN(quantity) || quantity < 0) {
+          throw new Error('Некорректные данные остатков');
+        }
+
+        const result = await client.query(
+          `INSERT INTO summary_stocks (product_id, date, warehouse_motornaya)
+           VALUES ($1, $2::date, $3)
+           ON CONFLICT (product_id, date)
+           DO UPDATE SET warehouse_motornaya = EXCLUDED.warehouse_motornaya
+           RETURNING product_id AS "productId", date::text AS date, warehouse_motornaya AS quantity`,
+          [productId, date, quantity]
+        );
+
+        saved.push(result.rows[0]);
+      }
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error(err);
+      const message = err.message || 'Ошибка сервера';
+      const status = /не найден/i.test(message) ? 400 : 500;
+      return res.status(status).json({ error: message });
+    } finally {
+      client.release();
+    }
+
+    return res.json({ success: true, date, saved });
+  }
+
   if (req.user.role !== 'admin' && req.user.id !== targetUserId) {
+    return res.status(403).json({ error: 'Доступ запрещён' });
+  }
+
+  if (req.user.role !== 'admin' && req.user.role !== 'user') {
     return res.status(403).json({ error: 'Доступ запрещён' });
   }
 

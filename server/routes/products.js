@@ -140,6 +140,15 @@ router.get('/all', adminOnly, async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
+    if (req.user.role === 'motor') {
+      const result = await pool.query(
+        `SELECT id, name, order_index
+         FROM global_products
+         ORDER BY order_index ASC`
+      );
+      return res.json(result.rows);
+    }
+
     let userId = req.user.id;
 
     if (req.user.role === 'admin' && req.query.userId) {

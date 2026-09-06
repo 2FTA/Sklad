@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, clearAuth, getStoredUser } from '../api';
 import { useToast } from '../components/ToastContext';
-import { formatDateFull, getToday, getTomorrowISO } from '../utils/dates';
+import { formatDateFull, getToday, getTomorrowISO, toISODate } from '../utils/dates';
 import './Dashboard.css';
 import './UserPage.css';
 
@@ -10,6 +10,7 @@ function UserPage() {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const currentUser = getStoredUser();
+  const isMotor = currentUser?.role === 'motor';
   const today = useMemo(() => getToday(), []);
   const todayLabel = formatDateFull(today);
 
@@ -57,7 +58,11 @@ function UserPage() {
         quantity: parseInt(quantities[p.id], 10) || 0,
       }));
 
-      await api.saveStocks(currentUser.id, getTomorrowISO(), stocks);
+      await api.saveStocks(
+        currentUser.id,
+        isMotor ? toISODate(today) : getTomorrowISO(),
+        stocks
+      );
       showToast('Остатки сохранены', 'success');
       await loadData();
     } catch (err) {

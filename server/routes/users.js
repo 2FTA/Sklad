@@ -65,8 +65,8 @@ router.put('/:id/capacity', async (req, res) => {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
-    if (user.rows[0].role === 'admin') {
-      return res.status(403).json({ error: 'Для администратора вместимость не используется' });
+    if (user.rows[0].role === 'admin' || user.rows[0].role === 'motor') {
+      return res.status(403).json({ error: 'Для этой роли вместимость не используется' });
     }
 
     const result = await pool.query(
@@ -116,7 +116,12 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Введите логин и пароль' });
   }
 
-  const userRole = role === 'admin' ? 'admin' : 'user';
+  const userRole =
+    role === 'admin' ? 'admin' : role === 'motor' ? 'motor' : 'user';
+
+  if (!['admin', 'user', 'motor'].includes(userRole)) {
+    return res.status(400).json({ error: 'Некорректная роль пользователя' });
+  }
 
   try {
     const existing = await pool.query('SELECT id FROM users WHERE login = $1', [
@@ -126,23 +131,37 @@ router.post('/', async (req, res) => {
       return res.status(409).json({ error: 'Пользователь с таким логином уже существует' });
     }
 
+    if (userRole === 'motor') {
+      const existingMotor = await pool.query(
+        "SELECT id FROM users WHERE role = 'motor' LIMIT 1"
+      );
+      if (existingMotor.rows.length > 0) {
+        return res.status(409).json({ error: 'Пользователь с ролью motor уже существует' });
+      }
+    }
+
     const hash = await bcrypt.hash(password, 10);
     const result = await pool.query(
       `INSERT INTO users (login, password_hash, password_plain, role, capacity)
        VALUES ($1, $2, $3, $4, $5) RETURNING id, login, role, capacity`,
-      [login.trim(), hash, password, userRole, 1000]
+      [login.trim(), hash, password, userRole, userRole === 'user' ? 1000 : null]
     );
 
     const newUserId = result.rows[0].id;
 
-    await pool.query(
-      `INSERT INTO products (user_id, global_product_id, name, quantity)
-       SELECT $1, gp.id, gp.name, 0 FROM global_products gp`,
-      [newUserId]
-    );
+    if (userRole === 'user') {
+      await pool.query(
+        `INSERT INTO products (user_id, global_product_id, name, quantity)
+         SELECT $1, gp.id, gp.name, 0 FROM global_products gp`,
+        [newUserId]
+      );
+    }
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
+    if (err.code === '23505' && err.constraint === 'users_motor_role_unique') {
+      return res.status(409).json({ error: 'Пользователь с ролью motor уже существует' });
+    }
     console.error(err);
     res.status(500).json({ error: 'Ошибка сервера' });
   }

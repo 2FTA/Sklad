@@ -6,9 +6,12 @@ import './Dashboard.css';
 import './AdminPages.css';
 
 function sortUsers(users) {
+  const roleOrder = { admin: 0, motor: 1, user: 2 };
+
   return [...users].sort((a, b) => {
-    if (a.role === 'admin' && b.role !== 'admin') return -1;
-    if (a.role !== 'admin' && b.role === 'admin') return 1;
+    const orderA = roleOrder[a.role] ?? 3;
+    const orderB = roleOrder[b.role] ?? 3;
+    if (orderA !== orderB) return orderA - orderB;
     return a.id - b.id;
   });
 }
@@ -260,6 +263,7 @@ function UsersManagement() {
                   value={newUser.role}
                   onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
                 >
+                  <option value="motor">motor</option>
                   <option value="user">user</option>
                   <option value="admin">admin</option>
                 </select>
