@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, clearAuth, getStoredUser } from '../api';
 import { useToast } from '../components/ToastContext';
-import { toISODate, formatDateFull, getToday, getTomorrowISO } from '../utils/dates';
+import { formatDateFull, getToday, getTomorrowISO } from '../utils/dates';
 import './Dashboard.css';
 import './UserPage.css';
 
@@ -11,7 +11,6 @@ function UserPage() {
   const navigate = useNavigate();
   const currentUser = getStoredUser();
   const today = useMemo(() => getToday(), []);
-  const todayStr = toISODate(today);
   const todayLabel = formatDateFull(today);
 
   const [products, setProducts] = useState([]);
@@ -22,10 +21,7 @@ function UserPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [productsData, stocksResponse] = await Promise.all([
-        api.getProducts(),
-        api.getStocks(currentUser.id, todayStr, todayStr),
-      ]);
+      const productsData = await api.getProducts();
 
       setProducts(productsData);
 
@@ -34,19 +30,13 @@ function UserPage() {
         inputs[p.id] = '';
       });
 
-      (stocksResponse.stocks || []).forEach((s) => {
-        if (s.date === todayStr && s.quantity !== null && s.quantity !== undefined) {
-          inputs[s.productId] = s.quantity;
-        }
-      });
-
       setQuantities(inputs);
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
-  }, [currentUser.id, todayStr, showToast]);
+  }, [showToast]);
 
   useEffect(() => {
     loadData();
@@ -106,7 +96,6 @@ function UserPage() {
                     type="number"
                     className="user-qty-input"
                     min="0"
-                    placeholder="0"
                     value={quantities[product.id] ?? ''}
                     onChange={(e) =>
                       setQuantities({ ...quantities, [product.id]: e.target.value })
