@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { api } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
@@ -8,7 +7,6 @@ import {
   getReportMonths,
   getDaysInMonth,
   formatDayMonth,
-  getMonthLabel,
   toISODate,
   buildStockMap,
 } from '../utils/dates';
@@ -112,8 +110,6 @@ function ReportsPage() {
     () => (selectedMonth ? getDaysInMonth(selectedMonth) : []),
     [selectedMonth]
   );
-
-  const selectedShop = shopUsers.find((u) => u.id === Number(selectedUserId));
 
   const loadShops = useCallback(async () => {
     try {
@@ -275,43 +271,6 @@ function ReportsPage() {
     };
   };
 
-  const handleExport = () => {
-    const shopName = selectedShop?.login || 'магазин';
-    const monthLabel = getMonthLabel(selectedMonth);
-
-    const headerRow = ['Дата', ...products.map((p) => p.name)];
-    const rows = days.map((date, dateIndex) => {
-      const row = [formatDayMonth(date)];
-
-      for (const product of products) {
-        const { sales, quantity, shipments, movement, returnValue } = getCellValues(
-          product.id,
-          dateIndex
-        );
-
-        const salesText = sales !== null ? String(sales) : '';
-        const qtyText = quantity !== null ? String(quantity) : '';
-        const shipText = shipments !== null && shipments !== undefined ? String(shipments) : '';
-        const movementText = movement ? String(movement) : '';
-        const returnText = returnValue ? String(returnValue) : '';
-        row.push(`${salesText}\n${qtyText}\n${shipText}\n${movementText}\n${returnText}`);
-      }
-
-      return row;
-    });
-
-    const worksheet = XLSX.utils.aoa_to_sheet([headerRow, ...rows]);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Отчет');
-    const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    saveAs(
-      new Blob([buffer], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      }),
-      `Отчет_${shopName}_${monthLabel.replace(' ', '_')}.xlsx`
-    );
-  };
-
   const renderCell = (product, dateIndex) => {
     const { sales, quantity, shipments, movement, returnValue, hasData } = getCellValues(
       product.id,
@@ -376,7 +335,7 @@ function ReportsPage() {
             value={viewType}
             onChange={(e) => setViewType(e.target.value)}
           >
-            <option value="reports">отчеты</option>
+            <option value="reports">отчеты дневные</option>
             <option value="movement">движение</option>
           </select>
 
@@ -410,15 +369,6 @@ function ReportsPage() {
                   </option>
                 ))}
               </select>
-
-              <button
-                type="button"
-                className="btn-export"
-                onClick={handleExport}
-                disabled={loading || !reportExists || products.length === 0}
-              >
-                Экспорт
-              </button>
             </>
           ) : (
             <>
