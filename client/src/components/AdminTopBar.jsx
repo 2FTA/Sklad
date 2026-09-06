@@ -1,10 +1,12 @@
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { clearAuth } from '../api';
+import { useExpired } from './ExpiredContext';
 import './AdminTopBar.css';
 
 function AdminTopBar({ title, onMenuClick, leftExtra }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { shouldBlink } = useExpired();
 
   const handleLogout = () => {
     clearAuth();
@@ -34,7 +36,9 @@ function AdminTopBar({ title, onMenuClick, leftExtra }) {
       <div className="top-bar-actions admin-nav">
         <Link
           to="/expired"
-          className={`btn-nav ${location.pathname === '/expired' ? 'active' : ''}`}
+          className={`btn-nav ${location.pathname === '/expired' ? 'active' : ''} ${
+            shouldBlink ? 'btn-nav-blink' : ''
+          }`}
         >
           Просрочка
         </Link>

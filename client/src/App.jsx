@@ -11,6 +11,7 @@ import ErrorsPage from './pages/ErrorsPage';
 import AdminRoute from './components/AdminRoute';
 import GlobalErrorHandlers from './components/GlobalErrorHandlers';
 import { ToastProvider } from './components/ToastContext';
+import { ExpiredProvider } from './components/ExpiredContext';
 import { getStoredUser } from './api';
 
 function PrivateRoute({ children }) {
@@ -26,8 +27,9 @@ function Home() {
 function App() {
   return (
     <ToastProvider>
-      <GlobalErrorHandlers />
-      <Routes>
+      <ExpiredProvider>
+        <GlobalErrorHandlers />
+        <Routes>
       <Route path="/login" element={<Login />} />
       <Route
         path="/"
@@ -87,6 +89,7 @@ function App() {
       />
       <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </ExpiredProvider>
     </ToastProvider>
   );
 }

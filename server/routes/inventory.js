@@ -171,6 +171,19 @@ router.post('/consume', async (req, res) => {
   }
 });
 
+router.get('/expired/check', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT EXISTS (SELECT 1 FROM get_expired_lots()) AS has_expired'
+    );
+
+    res.json({ hasExpired: Boolean(result.rows[0]?.has_expired) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
 router.get('/expired', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM get_expired_lots()');

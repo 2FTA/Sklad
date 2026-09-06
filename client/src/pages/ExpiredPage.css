@@ -32,3 +32,14 @@
 .expired-actions {
   white-space: nowrap;
 }
+
+.expired-check-col {
+  width: 48px;
+}
+
+.expired-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #16a34a;
+}

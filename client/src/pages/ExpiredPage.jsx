@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { api } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
 import { useToast } from '../components/ToastContext';
+import { useExpired } from '../components/ExpiredContext';
 import './Dashboard.css';
 import './AdminPages.css';
 import './ExpiredPage.css';
@@ -20,26 +21,8 @@ function formatDisplayDate(value) {
 
 function ExpiredPage() {
   const { showToast } = useToast();
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { items, loading, refreshExpired, markChecked, isChecked } = useExpired();
   const [deletingLotId, setDeletingLotId] = useState(null);
-
-  const loadExpired = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await api.getExpiredLots();
-      setItems(data);
-    } catch (err) {
-      showToast(err.message, 'error');
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [showToast]);
-
-  useEffect(() => {
-    loadExpired();
-  }, [loadExpired]);
 
   const handleDelete = async (lotId) => {
     if (!lotId) {
@@ -52,7 +35,7 @@ function ExpiredPage() {
     try {
       await api.deleteExpiredLot(lotId);
       showToast('Просрочка удалена', 'success');
-      await loadExpired();
+      await refreshExpired();
     } catch (err) {
       showToast(err.message || 'Ошибка удаления', 'error');
     } finally {
@@ -69,7 +52,7 @@ function ExpiredPage() {
           <button
             type="button"
             className="btn-sm btn-update"
-            onClick={loadExpired}
+            onClick={refreshExpired}
             disabled={loading}
           >
             Обновить
@@ -85,6 +68,7 @@ function ExpiredPage() {
             <table className="products-table expired-table">
               <thead>
                 <tr>
+                  <th className="text-center expired-check-col">✓</th>
                   <th>Магазин</th>
                   <th>Наименование</th>
                   <th className="text-center">Количество</th>
@@ -96,6 +80,15 @@ function ExpiredPage() {
               <tbody>
                 {items.map((item, index) => (
                   <tr key={item.lotId ?? `${item.shopName}-${item.productName}-${item.receivedDate}-${index}`}>
+                    <td className="text-center expired-check-col">
+                      <input
+                        type="checkbox"
+                        className="expired-checkbox"
+                        checked={isChecked(item.lotId)}
+                        onChange={() => markChecked(item.lotId)}
+                        aria-label="Отметить просрочку как просмотренную"
+                      />
+                    </td>
                     <td>{item.shopName}</td>
                     <td>{item.productName}</td>
                     <td className="text-center expired-num">{item.quantity}</td>
