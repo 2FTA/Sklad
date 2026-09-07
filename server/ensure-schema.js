@@ -67,6 +67,10 @@ async function ensureGlobalProductsSchema(pool) {
   await pool.query(`
     ALTER TABLE global_products ADD COLUMN IF NOT EXISTS warning_period INTEGER NOT NULL DEFAULT 0
   `);
+
+  await pool.query(`
+    ALTER TABLE global_products ADD COLUMN IF NOT EXISTS category VARCHAR(20) NOT NULL DEFAULT 'beer'
+  `);
 }
 
 async function ensureCustomPositionsSchema(pool) {
@@ -203,6 +207,7 @@ async function ensureInventoryLotsSchema(pool) {
       JOIN global_products gp ON gp.id = il.product_id
       JOIN users u ON u.id = il.shop_id
       WHERE il.quantity > 0
+        AND gp.category = 'beer'
         AND il.expiration_date - gp.warning_period <= CURRENT_DATE
       ORDER BY il.received_date, u.login, gp.name;
     END;

@@ -1,16 +1,23 @@
 const express = require('express');
 const pool = require('../db');
 const { authMiddleware, adminOnly } = require('../middleware/auth');
+const {
+  PRODUCT_CATEGORY_BEER,
+  PRODUCT_CATEGORY_HOUSEHOLD,
+  parseCategoryParam,
+  parseCategoryBody,
+} = require('../utils/productCategory');
 
 const router = express.Router();
 
 router.use(authMiddleware, adminOnly);
 
-async function renumberAll(client) {
+async function renumberBeerProducts(client) {
   await client.query(`
     WITH ranked AS (
       SELECT id, ROW_NUMBER() OVER (ORDER BY order_index ASC, id ASC) AS new_order
       FROM global_products
+      WHERE category = '${PRODUCT_CATEGORY_BEER}'
     )
     UPDATE global_products gp
     SET order_index = r.new_order
@@ -45,17 +52,29 @@ function validateWarningPeriod(warningPeriod, shelfLife) {
 }
 
 router.get('/', async (req, res) => {
+  const category = parseCategoryParam(req.query.category);
+
   try {
-    const result = await pool.query(`
-      SELECT gp.id, gp.name, gp.order_index, gp.weight, gp.price, gp.shelf_life, gp.warning_period,
+    const orderClause =
+      category === PRODUCT_CATEGORY_HOUSEHOLD
+        ? 'ORDER BY gp.name ASC'
+        : 'ORDER BY gp.order_index ASC';
+
+    const result = await pool.query(
+      `
+      SELECT gp.id, gp.name, gp.order_index, gp.weight, gp.price, gp.shelf_life,
+             gp.warning_period, gp.category,
              COALESCE(SUM(ds.quantity) FILTER (WHERE u.role = 'user'), 0)::int AS total_quantity
       FROM global_products gp
       LEFT JOIN products p ON p.global_product_id = gp.id
       LEFT JOIN users u ON u.id = p.user_id AND u.role = 'user'
       LEFT JOIN daily_stocks ds ON ds.product_id = p.id AND ds.date = CURRENT_DATE
+      WHERE gp.category = $1
       GROUP BY gp.id
-      ORDER BY gp.order_index ASC
-    `);
+      ${orderClause}
+    `,
+      [category]
+    );
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -64,7 +83,13 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { name, shelf_life: shelfLifeBody, warning_period: warningPeriodBody } = req.body;
+  const {
+    name,
+    shelf_life: shelfLifeBody,
+    warning_period: warningPeriodBody,
+    category: categoryBody,
+  } = req.body;
+  const category = parseCategoryBody(categoryBody);
 
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'Укажите название товара' });
@@ -73,32 +98,36 @@ router.post('/', async (req, res) => {
   const trimmedName = name.trim();
   let shelfLife = 0;
 
-  if (shelfLifeBody !== undefined && shelfLifeBody !== null && shelfLifeBody !== '') {
-    const parsedShelfLife = parseNonNegativeInt(shelfLifeBody, 'Срок хранения');
-    if (parsedShelfLife.error) {
-      return res.status(400).json({ error: parsedShelfLife.error });
+  if (category === PRODUCT_CATEGORY_BEER) {
+    if (shelfLifeBody !== undefined && shelfLifeBody !== null && shelfLifeBody !== '') {
+      const parsedShelfLife = parseNonNegativeInt(shelfLifeBody, 'Срок хранения');
+      if (parsedShelfLife.error) {
+        return res.status(400).json({ error: parsedShelfLife.error });
+      }
+      shelfLife = parsedShelfLife.value;
     }
-    shelfLife = parsedShelfLife.value;
   }
 
   let warningPeriod = 0;
-  if (warningPeriodBody !== undefined && warningPeriodBody !== null && warningPeriodBody !== '') {
-    const parsedWarningPeriod = parseNonNegativeInt(warningPeriodBody, 'Предупреждение');
-    if (parsedWarningPeriod.error) {
-      return res.status(400).json({ error: parsedWarningPeriod.error });
+  if (category === PRODUCT_CATEGORY_BEER) {
+    if (warningPeriodBody !== undefined && warningPeriodBody !== null && warningPeriodBody !== '') {
+      const parsedWarningPeriod = parseNonNegativeInt(warningPeriodBody, 'Предупреждение');
+      if (parsedWarningPeriod.error) {
+        return res.status(400).json({ error: parsedWarningPeriod.error });
+      }
+      warningPeriod = parsedWarningPeriod.value;
     }
-    warningPeriod = parsedWarningPeriod.value;
-  }
 
-  const warningValidation = validateWarningPeriod(warningPeriod, shelfLife);
-  if (warningValidation.error) {
-    return res.status(400).json({ error: warningValidation.error });
+    const warningValidation = validateWarningPeriod(warningPeriod, shelfLife);
+    if (warningValidation.error) {
+      return res.status(400).json({ error: warningValidation.error });
+    }
   }
 
   try {
     const existing = await pool.query(
-      'SELECT id FROM global_products WHERE LOWER(name) = LOWER($1)',
-      [trimmedName]
+      'SELECT id FROM global_products WHERE LOWER(name) = LOWER($1) AND category = $2',
+      [trimmedName, category]
     );
 
     if (existing.rows.length > 0) {
@@ -110,25 +139,33 @@ router.post('/', async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      const maxResult = await client.query(
-        'SELECT COALESCE(MAX(order_index), 0) AS max_order FROM global_products'
-      );
-      const orderIndex = maxResult.rows[0].max_order + 1;
+      let orderIndex = 0;
+      if (category === PRODUCT_CATEGORY_BEER) {
+        const maxResult = await client.query(
+          `SELECT COALESCE(MAX(order_index), 0) AS max_order
+           FROM global_products
+           WHERE category = $1`,
+          [PRODUCT_CATEGORY_BEER]
+        );
+        orderIndex = maxResult.rows[0].max_order + 1;
+      }
 
       const created = await client.query(
-        `INSERT INTO global_products (name, order_index, weight, price, shelf_life, warning_period)
-         VALUES ($1, $2, '1л', 0, $3, $4)
-         RETURNING id, name, order_index, weight, price, shelf_life, warning_period`,
-        [trimmedName, orderIndex, shelfLife, warningPeriod]
+        `INSERT INTO global_products (name, order_index, weight, price, shelf_life, warning_period, category)
+         VALUES ($1, $2, '1л', 0, $3, $4, $5)
+         RETURNING id, name, order_index, weight, price, shelf_life, warning_period, category`,
+        [trimmedName, orderIndex, shelfLife, warningPeriod, category]
       );
 
       const globalProduct = created.rows[0];
 
-      await client.query(
-        `INSERT INTO products (user_id, global_product_id, name, quantity)
-         SELECT u.id, $1, $2, 0 FROM users u WHERE u.role = 'user'`,
-        [globalProduct.id, trimmedName]
-      );
+      if (category === PRODUCT_CATEGORY_BEER) {
+        await client.query(
+          `INSERT INTO products (user_id, global_product_id, name, quantity)
+           SELECT u.id, $1, $2, 0 FROM users u WHERE u.role = 'user'`,
+          [globalProduct.id, trimmedName]
+        );
+      }
 
       await client.query('COMMIT');
 
@@ -176,7 +213,7 @@ router.put('/:id/order', async (req, res) => {
         [newOrder, id]
       );
 
-      await renumberAll(client);
+      await renumberBeerProducts(client);
 
       const result = await client.query(
         'SELECT id, name, order_index, weight, price, shelf_life FROM global_products WHERE id = $1',
@@ -206,6 +243,7 @@ router.put('/:id', async (req, res) => {
     price,
     shelf_life: shelfLifeBody,
     warning_period: warningPeriodBody,
+    category: categoryBody,
   } = req.body;
 
   if (
@@ -213,14 +251,15 @@ router.put('/:id', async (req, res) => {
     weight === undefined &&
     price === undefined &&
     shelfLifeBody === undefined &&
-    warningPeriodBody === undefined
+    warningPeriodBody === undefined &&
+    categoryBody === undefined
   ) {
     return res.status(400).json({ error: 'Укажите название, литраж, цену, срок хранения или предупреждение' });
   }
 
   try {
     const existing = await pool.query(
-      'SELECT id, name, shelf_life, warning_period FROM global_products WHERE id = $1',
+      'SELECT id, name, shelf_life, warning_period, category FROM global_products WHERE id = $1',
       [id]
     );
 
@@ -243,8 +282,8 @@ router.put('/:id', async (req, res) => {
 
       const trimmedName = name.trim();
       const duplicate = await pool.query(
-        'SELECT id FROM global_products WHERE LOWER(name) = LOWER($1) AND id != $2',
-        [trimmedName, id]
+        'SELECT id FROM global_products WHERE LOWER(name) = LOWER($1) AND id != $2 AND category = $3',
+        [trimmedName, id, current.category]
       );
 
       if (duplicate.rows.length > 0) {
@@ -302,6 +341,11 @@ router.put('/:id', async (req, res) => {
       values.push(nextWarningPeriod);
     }
 
+    if (categoryBody !== undefined) {
+      updates.push(`category = $${paramIndex++}`);
+      values.push(parseCategoryBody(categoryBody));
+    }
+
     const warningValidation = validateWarningPeriod(nextWarningPeriod, nextShelfLife);
     if (warningValidation.error) {
       return res.status(400).json({ error: warningValidation.error });
@@ -311,11 +355,11 @@ router.put('/:id', async (req, res) => {
 
     const result = await pool.query(
       `UPDATE global_products SET ${updates.join(', ')}
-       WHERE id = $${paramIndex} RETURNING id, name, order_index, weight, price, shelf_life, warning_period`,
+       WHERE id = $${paramIndex} RETURNING id, name, order_index, weight, price, shelf_life, warning_period, category`,
       values
     );
 
-    if (name !== undefined) {
+    if (name !== undefined && current.category === PRODUCT_CATEGORY_BEER) {
       await pool.query(
         'UPDATE products SET name = $1 WHERE global_product_id = $2',
         [result.rows[0].name, id]
@@ -338,17 +382,19 @@ router.delete('/:id', async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      const result = await client.query(
-        'DELETE FROM global_products WHERE id = $1 RETURNING id',
+      const deleted = await client.query(
+        'DELETE FROM global_products WHERE id = $1 RETURNING id, category',
         [id]
       );
 
-      if (result.rows.length === 0) {
+      if (deleted.rows.length === 0) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'Товар не найден' });
       }
 
-      await renumberAll(client);
+      if (deleted.rows[0].category === PRODUCT_CATEGORY_BEER) {
+        await renumberBeerProducts(client);
+      }
 
       await client.query('COMMIT');
 

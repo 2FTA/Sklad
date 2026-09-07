@@ -27,7 +27,7 @@ async function ensureReportProduct(db, reportId, userProductId) {
     `SELECT gp.name, gp.order_index, gp.weight
      FROM products p
      JOIN global_products gp ON p.global_product_id = gp.id
-     WHERE p.id = $1`,
+     WHERE p.id = $1 AND gp.category = 'beer'`,
     [userProductId]
   );
 

@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db');
 const { authMiddleware, adminOnly } = require('../middleware/auth');
+const { PRODUCT_CATEGORY_BEER } = require('../utils/productCategory');
 
 const router = express.Router();
 
@@ -11,10 +12,11 @@ router.get('/:date', async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT product_id AS "productId", warehouse, warehouse_motornaya AS "warehouseMotornaya"
-       FROM summary_stocks
-       WHERE date = $1::date`,
-      [date]
+      `SELECT ss.product_id AS "productId", ss.warehouse, ss.warehouse_motornaya AS "warehouseMotornaya"
+       FROM summary_stocks ss
+       JOIN global_products gp ON gp.id = ss.product_id
+       WHERE ss.date = $1::date AND gp.category = $2`,
+      [date, PRODUCT_CATEGORY_BEER]
     );
     res.json(result.rows);
   } catch (err) {
@@ -40,6 +42,16 @@ router.post('/', async (req, res) => {
       if (isNaN(productId)) {
         await client.query('ROLLBACK');
         return res.status(400).json({ error: 'Некорректный идентификатор товара' });
+      }
+
+      const product = await client.query(
+        'SELECT id FROM global_products WHERE id = $1 AND category = $2',
+        [productId, PRODUCT_CATEGORY_BEER]
+      );
+
+      if (product.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: `Товар ${productId} не найден` });
       }
 
       const warehouse =

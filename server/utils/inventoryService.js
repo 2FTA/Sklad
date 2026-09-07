@@ -28,7 +28,7 @@ async function resolveGlobalProduct(client, productId, shopId) {
   const globalResult = await client.query(
     `SELECT id, shelf_life
      FROM global_products
-     WHERE id = $1`,
+     WHERE id = $1 AND category = 'beer'`,
     [globalProductId]
   );
 

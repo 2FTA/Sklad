@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db');
 const { authMiddleware, adminOnly } = require('../middleware/auth');
+const { PRODUCT_CATEGORY_BEER } = require('../utils/productCategory');
 
 const router = express.Router();
 
@@ -37,6 +38,7 @@ router.get('/:userId', async (req, res) => {
        JOIN products p ON ds.product_id = p.id
        JOIN global_products gp ON p.global_product_id = gp.id
        WHERE ds.user_id = $1
+         AND gp.category = '${PRODUCT_CATEGORY_BEER}'
          AND ds.date = CURRENT_DATE
          AND ${quantityColumn} > 0
        ORDER BY gp.order_index ASC, gp.id ASC`,

@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db');
 const { authMiddleware, adminOnly } = require('../middleware/auth');
+const { PRODUCT_CATEGORY_BEER } = require('../utils/productCategory');
 
 const router = express.Router();
 
@@ -13,6 +14,7 @@ router.get('/aggregated', adminOnly, async (req, res) => {
              COALESCE(SUM(p.quantity), 0)::int AS total_quantity
       FROM global_products gp
       LEFT JOIN products p ON p.global_product_id = gp.id
+      WHERE gp.category = '${PRODUCT_CATEGORY_BEER}'
       GROUP BY gp.id
       ORDER BY gp.order_index ASC
     `);
@@ -144,7 +146,9 @@ router.get('/', async (req, res) => {
       const result = await pool.query(
         `SELECT id, name, order_index
          FROM global_products
-         ORDER BY order_index ASC`
+         WHERE category = $1
+         ORDER BY order_index ASC`,
+        [PRODUCT_CATEGORY_BEER]
       );
       return res.json(result.rows);
     }
@@ -159,9 +163,9 @@ router.get('/', async (req, res) => {
       `SELECT p.id, gp.name AS name, p.quantity, gp.order_index
        FROM products p
        JOIN global_products gp ON p.global_product_id = gp.id
-       WHERE p.user_id = $1
+       WHERE p.user_id = $1 AND gp.category = $2
        ORDER BY gp.order_index ASC`,
-      [userId]
+      [userId, PRODUCT_CATEGORY_BEER]
     );
 
     res.json(result.rows);

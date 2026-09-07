@@ -152,7 +152,7 @@ router.post('/', async (req, res) => {
     if (userRole === 'user') {
       await pool.query(
         `INSERT INTO products (user_id, global_product_id, name, quantity)
-         SELECT $1, gp.id, gp.name, 0 FROM global_products gp`,
+         SELECT $1, gp.id, gp.name, 0 FROM global_products gp WHERE gp.category = 'beer'`,
         [newUserId]
       );
     }

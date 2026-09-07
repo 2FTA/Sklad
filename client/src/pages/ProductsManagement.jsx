@@ -16,6 +16,9 @@ function ProductsManagement() {
   const [priceInputs, setPriceInputs] = useState({});
   const [shelfLifeInputs, setShelfLifeInputs] = useState({});
   const [warningPeriodInputs, setWarningPeriodInputs] = useState({});
+  const [activeCategory, setActiveCategory] = useState('beer');
+
+  const isBeer = activeCategory === 'beer';
 
   const flash = (msg) => {
     showToast(msg, 'success');
@@ -24,7 +27,7 @@ function ProductsManagement() {
   const loadProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await api.getGlobalProducts();
+      const data = await api.getGlobalProducts(activeCategory);
       setProducts(data);
       const inputs = {};
       const prices = {};
@@ -45,7 +48,7 @@ function ProductsManagement() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeCategory, showToast]);
 
   useEffect(() => {
     loadProducts();
@@ -82,9 +85,9 @@ function ProductsManagement() {
   const handleAddProduct = async (e) => {
     e.preventDefault();
     try {
-      await api.createGlobalProduct(newProductName);
+      await api.createGlobalProduct(newProductName, activeCategory);
       setNewProductName('');
-      flash('Товар добавлен всем пользователям');
+      flash(isBeer ? 'Товар добавлен всем пользователям' : 'Товар добавлен');
       await loadProducts();
     } catch (err) {
       showToast(err.message, 'error');
@@ -248,11 +251,73 @@ function ProductsManagement() {
     }
   };
 
+  const handleCategoryChange = (category) => {
+    if (category === activeCategory) return;
+    setEditingId(null);
+    setActiveCategory(category);
+  };
+
+  const renderProductNameCell = (product) => (
+    <td className="col-name">
+      {editingId === product.id ? (
+        <div className="inline-edit">
+          <input value={editName} onChange={(e) => setEditName(e.target.value)} />
+          <button className="btn-sm btn-update" onClick={() => handleRename(product.id)}>
+            Сохранить
+          </button>
+          <button className="btn-sm btn-cancel" onClick={() => setEditingId(null)}>
+            Отмена
+          </button>
+        </div>
+      ) : (
+        product.name
+      )}
+    </td>
+  );
+
+  const renderActionsCell = (product) => (
+    <td className="col-center">
+      <div className="actions-cell">
+        {editingId !== product.id && (
+          <button
+            className="btn-sm btn-rename"
+            onClick={() => {
+              setEditingId(product.id);
+              setEditName(product.name);
+            }}
+          >
+            ✏️ Изменить название
+          </button>
+        )}
+        <button className="btn-sm btn-delete" onClick={() => handleDelete(product)}>
+          ✕ Удалить товар
+        </button>
+      </div>
+    </td>
+  );
+
   return (
     <div className="page-layout">
       <AdminTopBar title="Управление товарами" />
 
       <div className="content-area">
+        <div className="product-category-tabs">
+          <button
+            type="button"
+            className={`product-category-tab ${isBeer ? 'active' : ''}`}
+            onClick={() => handleCategoryChange('beer')}
+          >
+            Пиво
+          </button>
+          <button
+            type="button"
+            className={`product-category-tab ${!isBeer ? 'active' : ''}`}
+            onClick={() => handleCategoryChange('household')}
+          >
+            Хоз товары
+          </button>
+        </div>
+
         {loading ? (
           <div className="loading">Загрузка...</div>
         ) : products.length === 0 ? (
@@ -263,120 +328,89 @@ function ProductsManagement() {
               <thead>
                 <tr>
                   <th className="col-name">Название</th>
-                  <th className="col-center">Срок хранения</th>
-                  <th className="col-center">Предупреждение</th>
-                  <th className="col-center">Цена</th>
-                  <th className="col-center">Литраж</th>
-                  <th className="col-center">Порядок</th>
-                  <th className="col-center">Общее количество</th>
+                  {isBeer && (
+                    <>
+                      <th className="col-center">Срок хранения</th>
+                      <th className="col-center">Предупреждение</th>
+                      <th className="col-center">Цена</th>
+                      <th className="col-center">Литраж</th>
+                      <th className="col-center">Порядок</th>
+                      <th className="col-center">Общее количество</th>
+                    </>
+                  )}
                   <th className="col-center">Действия</th>
                 </tr>
               </thead>
               <tbody>
                 {products.map((product) => (
                   <tr key={product.id}>
-                    <td className="col-name">
-                      {editingId === product.id ? (
-                        <div className="inline-edit">
+                    {renderProductNameCell(product)}
+                    {isBeer && (
+                      <>
+                        <td className="col-center">
                           <input
-                            value={editName}
-                            onChange={(e) => setEditName(e.target.value)}
+                            type="number"
+                            className="shelf-life-input"
+                            min="0"
+                            step="1"
+                            value={shelfLifeInputs[product.id] ?? product.shelf_life ?? 0}
+                            onChange={(e) => handleShelfLifeChange(product.id, e.target.value)}
+                            onBlur={() => handleShelfLifeSave(product.id)}
                           />
-                          <button
-                            className="btn-sm btn-update"
-                            onClick={() => handleRename(product.id)}
+                        </td>
+                        <td className="col-center">
+                          <input
+                            type="number"
+                            className="warning-period-input"
+                            min="0"
+                            step="1"
+                            value={warningPeriodInputs[product.id] ?? product.warning_period ?? 0}
+                            disabled={(product.shelf_life ?? 0) === 0}
+                            onChange={(e) =>
+                              handleWarningPeriodChange(product.id, e.target.value)
+                            }
+                            onBlur={() => handleWarningPeriodSave(product.id)}
+                          />
+                        </td>
+                        <td className="col-center">
+                          <input
+                            type="number"
+                            className="price-input"
+                            min="0"
+                            max="9999"
+                            step="1"
+                            value={priceInputs[product.id] ?? product.price ?? 0}
+                            onChange={(e) => handlePriceChange(product.id, e.target.value)}
+                            onBlur={() => handlePriceSave(product.id)}
+                          />
+                        </td>
+                        <td className="col-center">
+                          <select
+                            className="weight-select"
+                            value={product.weight || '1л'}
+                            onChange={(e) => handleWeightChange(product.id, e.target.value)}
                           >
-                            Сохранить
-                          </button>
-                          <button
-                            className="btn-sm btn-cancel"
-                            onClick={() => setEditingId(null)}
-                          >
-                            Отмена
-                          </button>
-                        </div>
-                      ) : (
-                        product.name
-                      )}
-                    </td>
-                    <td className="col-center">
-                      <input
-                        type="number"
-                        className="shelf-life-input"
-                        min="0"
-                        step="1"
-                        value={shelfLifeInputs[product.id] ?? product.shelf_life ?? 0}
-                        onChange={(e) => handleShelfLifeChange(product.id, e.target.value)}
-                        onBlur={() => handleShelfLifeSave(product.id)}
-                      />
-                    </td>
-                    <td className="col-center">
-                      <input
-                        type="number"
-                        className="warning-period-input"
-                        min="0"
-                        step="1"
-                        value={warningPeriodInputs[product.id] ?? product.warning_period ?? 0}
-                        disabled={(product.shelf_life ?? 0) === 0}
-                        onChange={(e) => handleWarningPeriodChange(product.id, e.target.value)}
-                        onBlur={() => handleWarningPeriodSave(product.id)}
-                      />
-                    </td>
-                    <td className="col-center">
-                      <input
-                        type="number"
-                        className="price-input"
-                        min="0"
-                        max="9999"
-                        step="1"
-                        value={priceInputs[product.id] ?? product.price ?? 0}
-                        onChange={(e) => handlePriceChange(product.id, e.target.value)}
-                        onBlur={() => handlePriceSave(product.id)}
-                      />
-                    </td>
-                    <td className="col-center">
-                      <select
-                        className="weight-select"
-                        value={product.weight || '1л'}
-                        onChange={(e) => handleWeightChange(product.id, e.target.value)}
-                      >
-                        <option value="1л">1л</option>
-                        <option value="0.3">0.3</option>
-                      </select>
-                    </td>
-                    <td className="col-center">
-                      <input
-                        type="number"
-                        className="order-input"
-                        min="1"
-                        title="Порядок"
-                        value={orderInputs[product.id] ?? product.order_index}
-                        onChange={(e) => handleOrderChange(product.id, e.target.value)}
-                        onBlur={() => handleOrderSave(product.id)}
-                      />
-                    </td>
-                    <td className="quantity-cell col-center">{product.total_quantity ?? 0}</td>
-                    <td className="col-center">
-                      <div className="actions-cell">
-                        {editingId !== product.id && (
-                          <button
-                            className="btn-sm btn-rename"
-                            onClick={() => {
-                              setEditingId(product.id);
-                              setEditName(product.name);
-                            }}
-                          >
-                            ✏️ Изменить название
-                          </button>
-                        )}
-                        <button
-                          className="btn-sm btn-delete"
-                          onClick={() => handleDelete(product)}
-                        >
-                          ✕ Удалить товар
-                        </button>
-                      </div>
-                    </td>
+                            <option value="1л">1л</option>
+                            <option value="0.3">0.3</option>
+                          </select>
+                        </td>
+                        <td className="col-center">
+                          <input
+                            type="number"
+                            className="order-input"
+                            min="1"
+                            title="Порядок"
+                            value={orderInputs[product.id] ?? product.order_index}
+                            onChange={(e) => handleOrderChange(product.id, e.target.value)}
+                            onBlur={() => handleOrderSave(product.id)}
+                          />
+                        </td>
+                        <td className="quantity-cell col-center">
+                          {product.total_quantity ?? 0}
+                        </td>
+                      </>
+                    )}
+                    {renderActionsCell(product)}
                   </tr>
                 ))}
               </tbody>

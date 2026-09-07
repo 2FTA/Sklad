@@ -100,12 +100,13 @@ export const api = {
 
   getAggregatedProducts: () => request('/products/aggregated'),
 
-  getGlobalProducts: () => request('/global-products'),
+  getGlobalProducts: (category = 'beer') =>
+    request(`/global-products?category=${category}`),
 
-  createGlobalProduct: (name) =>
+  createGlobalProduct: (name, category = 'beer') =>
     request('/global-products', {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, category }),
     }),
 
   updateGlobalProductOrder: (id, orderIndex) =>

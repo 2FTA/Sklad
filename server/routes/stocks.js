@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../db');
 const { authMiddleware, adminOnly } = require('../middleware/auth');
+const { PRODUCT_CATEGORY_BEER } = require('../utils/productCategory');
 const { syncDailyStockToReport } = require('../utils/reportSync');
 const {
   getExistingDailyStock,
@@ -63,8 +64,8 @@ router.post('/', async (req, res) => {
         }
 
         const product = await client.query(
-          'SELECT id FROM global_products WHERE id = $1',
-          [productId]
+          'SELECT id FROM global_products WHERE id = $1 AND category = $2',
+          [productId, PRODUCT_CATEGORY_BEER]
         );
 
         if (product.rows.length === 0) {
@@ -254,6 +255,7 @@ router.get('/today', adminOnly, async (req, res) => {
        JOIN global_products gp ON p.global_product_id = gp.id
        JOIN users u ON u.id = p.user_id AND u.role = 'user'
        LEFT JOIN daily_stocks ds ON ds.product_id = p.id AND ds.date = $1::date
+       WHERE gp.category = '${PRODUCT_CATEGORY_BEER}'
        ORDER BY gp.order_index ASC, u.login ASC`,
       [date]
     );
@@ -384,9 +386,9 @@ router.get('/:userId', async (req, res) => {
        JOIN global_products gp ON p.global_product_id = gp.id
        LEFT JOIN daily_stocks ds ON ds.product_id = p.id
          AND ds.date >= $2::date AND ds.date <= $3::date
-       WHERE p.user_id = $1
+       WHERE p.user_id = $1 AND gp.category = $4
        ORDER BY gp.order_index ASC, ds.date DESC`,
-      [userId, startDate, endDate]
+      [userId, startDate, endDate, PRODUCT_CATEGORY_BEER]
     );
 
     const stocks = result.rows
@@ -410,8 +412,8 @@ router.get('/:userId', async (req, res) => {
          FROM products p
          JOIN global_products gp ON p.global_product_id = gp.id
          LEFT JOIN daily_stocks ds ON ds.product_id = p.id AND ds.date = $2::date
-         WHERE p.user_id = $1 AND gp.weight = '1л'`,
-        [userId, totalDate]
+         WHERE p.user_id = $1 AND gp.weight = '1л' AND gp.category = $3`,
+        [userId, totalDate, PRODUCT_CATEGORY_BEER]
       );
       storeTotal = totalResult.rows[0].store_total;
     }
