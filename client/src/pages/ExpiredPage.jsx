@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
 import { useToast } from '../components/ToastContext';
@@ -24,6 +24,10 @@ function ExpiredPage() {
   const { items, loading, refreshExpired, markChecked, isChecked } = useExpired();
   const [deletingLotId, setDeletingLotId] = useState(null);
 
+  useEffect(() => {
+    refreshExpired();
+  }, [refreshExpired]);
+
   const handleDelete = async (lotId) => {
     if (!lotId) {
       showToast('Не удалось определить партию', 'error');
@@ -48,17 +52,6 @@ function ExpiredPage() {
       <AdminTopBar title="Просрочка" />
 
       <div className="content-area admin-content-area">
-        <div className="expired-toolbar">
-          <button
-            type="button"
-            className="btn-sm btn-update"
-            onClick={refreshExpired}
-            disabled={loading}
-          >
-            Обновить
-          </button>
-        </div>
-
         {loading ? (
           <div className="loading">Загрузка...</div>
         ) : items.length === 0 ? (

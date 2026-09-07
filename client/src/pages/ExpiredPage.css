@@ -1,10 +1,3 @@
-.expired-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 1rem;
-  flex-shrink: 0;
-}
-
 .expired-table-wrapper {
   flex: 1;
   min-height: 0;
