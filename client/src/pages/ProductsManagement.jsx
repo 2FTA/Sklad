@@ -258,24 +258,24 @@ function ProductsManagement() {
         ) : products.length === 0 ? (
           <div className="empty-state">Товаров пока нет</div>
         ) : (
-          <div className="products-table-wrapper">
-            <table className="products-table">
+          <div className="products-table-wrapper products-management-scroll">
+            <table className="products-table products-management-table">
               <thead>
                 <tr>
-                  <th>Название</th>
-                  <th>Срок хранения</th>
-                  <th>Предупреждение</th>
-                  <th>Цена</th>
-                  <th>Литраж</th>
-                  <th>Порядок</th>
-                  <th>Общее количество</th>
-                  <th>Действия</th>
+                  <th className="col-name">Название</th>
+                  <th className="col-center">Срок хранения</th>
+                  <th className="col-center">Предупреждение</th>
+                  <th className="col-center">Цена</th>
+                  <th className="col-center">Литраж</th>
+                  <th className="col-center">Порядок</th>
+                  <th className="col-center">Общее количество</th>
+                  <th className="col-center">Действия</th>
                 </tr>
               </thead>
               <tbody>
                 {products.map((product) => (
                   <tr key={product.id}>
-                    <td>
+                    <td className="col-name">
                       {editingId === product.id ? (
                         <div className="inline-edit">
                           <input
@@ -299,7 +299,7 @@ function ProductsManagement() {
                         product.name
                       )}
                     </td>
-                    <td>
+                    <td className="col-center">
                       <input
                         type="number"
                         className="shelf-life-input"
@@ -310,7 +310,7 @@ function ProductsManagement() {
                         onBlur={() => handleShelfLifeSave(product.id)}
                       />
                     </td>
-                    <td>
+                    <td className="col-center">
                       <input
                         type="number"
                         className="warning-period-input"
@@ -322,7 +322,7 @@ function ProductsManagement() {
                         onBlur={() => handleWarningPeriodSave(product.id)}
                       />
                     </td>
-                    <td>
+                    <td className="col-center">
                       <input
                         type="number"
                         className="price-input"
@@ -334,7 +334,7 @@ function ProductsManagement() {
                         onBlur={() => handlePriceSave(product.id)}
                       />
                     </td>
-                    <td>
+                    <td className="col-center">
                       <select
                         className="weight-select"
                         value={product.weight || '1л'}
@@ -344,7 +344,7 @@ function ProductsManagement() {
                         <option value="0.3">0.3</option>
                       </select>
                     </td>
-                    <td>
+                    <td className="col-center">
                       <input
                         type="number"
                         className="order-input"
@@ -355,8 +355,8 @@ function ProductsManagement() {
                         onBlur={() => handleOrderSave(product.id)}
                       />
                     </td>
-                    <td className="quantity-cell">{product.total_quantity ?? 0}</td>
-                    <td>
+                    <td className="quantity-cell col-center">{product.total_quantity ?? 0}</td>
+                    <td className="col-center">
                       <div className="actions-cell">
                         {editingId !== product.id && (
                           <button
@@ -386,9 +386,6 @@ function ProductsManagement() {
 
         <div className="bottom-form">
           <h2>Добавить товар</h2>
-          <p style={{ color: '#64748b', marginBottom: '1rem', fontSize: '0.9rem' }}>
-            Товар будет добавлен всем пользователям системы
-          </p>
           <form onSubmit={handleAddProduct}>
             <div className="bottom-form-row">
               <div className="form-group">
@@ -396,7 +393,6 @@ function ProductsManagement() {
                 <input
                   value={newProductName}
                   onChange={(e) => setNewProductName(e.target.value)}
-                  placeholder="Например: футболки"
                   required
                 />
               </div>

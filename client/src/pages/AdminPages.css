@@ -130,6 +130,32 @@
   border-color: #2563eb;
 }
 
+.products-management-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  max-height: calc(100vh - 280px);
+}
+
+.products-management-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f1f5f9;
+}
+
+.products-management-table .col-name {
+  text-align: left;
+}
+
+.products-management-table .col-center {
+  text-align: center;
+}
+
+.products-management-table .col-center .actions-cell {
+  justify-content: center;
+}
+
 .capacity-input {
   width: 90px;
   padding: 0.4rem 0.5rem;
