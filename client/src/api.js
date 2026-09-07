@@ -93,8 +93,13 @@ export const api = {
       body: JSON.stringify({ capacity }),
     }),
 
-  getProducts: (userId) =>
-    request(userId ? `/products?userId=${userId}` : '/products'),
+  getProducts: (userId, category) => {
+    const params = new URLSearchParams();
+    if (userId) params.set('userId', userId);
+    if (category) params.set('category', category);
+    const query = params.toString();
+    return request(`/products${query ? `?${query}` : ''}`);
+  },
 
   getAllProducts: () => request('/products/all'),
 
@@ -196,6 +201,17 @@ export const api = {
   },
 
   getSummary: (date) => request(`/summary/${date}`),
+
+  getHouseholdRequests: () => request('/household'),
+
+  createHouseholdRequests: (items) =>
+    request('/household', {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+    }),
+
+  deleteHouseholdRequest: (id) =>
+    request(`/household/${id}`, { method: 'DELETE' }),
 
   saveSummary: (date, items) =>
     request('/summary', {

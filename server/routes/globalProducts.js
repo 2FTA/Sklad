@@ -159,7 +159,7 @@ router.post('/', async (req, res) => {
 
       const globalProduct = created.rows[0];
 
-      if (category === PRODUCT_CATEGORY_BEER) {
+      if (category === PRODUCT_CATEGORY_BEER || category === PRODUCT_CATEGORY_HOUSEHOLD) {
         await client.query(
           `INSERT INTO products (user_id, global_product_id, name, quantity)
            SELECT u.id, $1, $2, 0 FROM users u WHERE u.role = 'user'`,

@@ -1,0 +1,26 @@
+.household-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.household-group-title {
+  font-size: 1.1rem;
+  color: #1e293b;
+  margin: 0 0 0.75rem;
+}
+
+.household-table-wrapper {
+  overflow: auto;
+}
+
+.household-table .text-center {
+  text-align: center;
+}
+
+.household-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f1f5f9;
+}

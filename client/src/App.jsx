@@ -7,6 +7,7 @@ import ProductsManagement from './pages/ProductsManagement';
 import ReportsPage from './pages/ReportsPage';
 import MovementPage from './pages/MovementPage';
 import ExpiredPage from './pages/ExpiredPage';
+import AdminHouseholdPage from './pages/AdminHouseholdPage';
 import ErrorsPage from './pages/ErrorsPage';
 import AdminRoute from './components/AdminRoute';
 import GlobalErrorHandlers from './components/GlobalErrorHandlers';
@@ -79,6 +80,14 @@ function App() {
         element={
           <AdminRoute>
             <ProductsManagement />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/household"
+        element={
+          <AdminRoute>
+            <AdminHouseholdPage />
           </AdminRoute>
         }
       />

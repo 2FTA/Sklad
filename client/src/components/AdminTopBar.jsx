@@ -35,6 +35,12 @@ function AdminTopBar({ title, onMenuClick, leftExtra }) {
       </div>
       <div className="top-bar-actions admin-nav">
         <Link
+          to="/admin/household"
+          className={`btn-nav ${location.pathname === '/admin/household' ? 'active' : ''}`}
+        >
+          Хоз товары
+        </Link>
+        <Link
           to="/expired"
           className={`btn-nav ${location.pathname === '/expired' ? 'active' : ''} ${
             shouldBlink ? 'btn-nav-blink' : ''

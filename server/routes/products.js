@@ -1,7 +1,7 @@
 const express = require('express');
 const pool = require('../db');
 const { authMiddleware, adminOnly } = require('../middleware/auth');
-const { PRODUCT_CATEGORY_BEER } = require('../utils/productCategory');
+const { PRODUCT_CATEGORY_BEER, parseCategoryParam, PRODUCT_CATEGORY_HOUSEHOLD } = require('../utils/productCategory');
 
 const router = express.Router();
 
@@ -159,13 +159,19 @@ router.get('/', async (req, res) => {
       userId = parseInt(req.query.userId, 10);
     }
 
+    const category = parseCategoryParam(req.query.category);
+    const orderClause =
+      category === PRODUCT_CATEGORY_HOUSEHOLD
+        ? 'ORDER BY gp.name ASC'
+        : 'ORDER BY gp.order_index ASC';
+
     const result = await pool.query(
-      `SELECT p.id, gp.name AS name, p.quantity, gp.order_index
+      `SELECT p.id, p.global_product_id AS "globalProductId", gp.name AS name, p.quantity, gp.order_index
        FROM products p
        JOIN global_products gp ON p.global_product_id = gp.id
        WHERE p.user_id = $1 AND gp.category = $2
-       ORDER BY gp.order_index ASC`,
-      [userId, PRODUCT_CATEGORY_BEER]
+       ${orderClause}`,
+      [userId, category]
     );
 
     res.json(result.rows);

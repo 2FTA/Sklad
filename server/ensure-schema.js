@@ -105,6 +105,31 @@ async function ensureSummaryStocksSchema(pool) {
   `);
 }
 
+async function ensureHouseholdRequestsSchema(pool) {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS household_requests (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      product_id INTEGER NOT NULL REFERENCES global_products(id) ON DELETE CASCADE,
+      quantity INTEGER NOT NULL,
+      request_date TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    INSERT INTO products (user_id, global_product_id, name, quantity)
+    SELECT u.id, gp.id, gp.name, 0
+    FROM users u
+    CROSS JOIN global_products gp
+    WHERE u.role = 'user'
+      AND gp.category = 'household'
+      AND NOT EXISTS (
+        SELECT 1 FROM products p
+        WHERE p.user_id = u.id AND p.global_product_id = gp.id
+      )
+  `);
+}
+
 async function ensureMovementExportsSchema(pool) {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS movement_exports (
@@ -222,6 +247,7 @@ async function ensureSchema(pool) {
   await ensureCustomPositionsSchema(pool);
   await ensureReportStocksSchema(pool);
   await ensureSummaryStocksSchema(pool);
+  await ensureHouseholdRequestsSchema(pool);
   await ensureMovementExportsSchema(pool);
   await ensureInvoicesSchema(pool);
   await ensureInventoryLotsSchema(pool);
@@ -236,6 +262,7 @@ module.exports = {
   ensureCustomPositionsSchema,
   ensureReportStocksSchema,
   ensureSummaryStocksSchema,
+  ensureHouseholdRequestsSchema,
   ensureMovementExportsSchema,
   ensureInvoicesSchema,
   ensureInventoryLotsSchema,
