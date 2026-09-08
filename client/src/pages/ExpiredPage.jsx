@@ -21,12 +21,27 @@ function formatDisplayDate(value) {
 
 function ExpiredPage() {
   const { showToast } = useToast();
-  const { items, loading, refreshExpired, markChecked, isChecked } = useExpired();
+  const { items, loading, refreshExpired, markChecked, isChecked, resetExpiredStatus } =
+    useExpired();
   const [deletingLotId, setDeletingLotId] = useState(null);
 
   useEffect(() => {
     refreshExpired();
   }, [refreshExpired]);
+
+  useEffect(() => {
+    if (loading || items.length === 0) {
+      return;
+    }
+
+    const allChecked = items.every(
+      (item) => item.lotId == null || isChecked(item.lotId)
+    );
+
+    if (allChecked) {
+      resetExpiredStatus();
+    }
+  }, [items, loading, isChecked, resetExpiredStatus]);
 
   const handleDelete = async (lotId) => {
     if (!lotId) {

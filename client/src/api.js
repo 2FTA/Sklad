@@ -3,7 +3,7 @@ import { logError } from './utils/errorLogger';
 // Берем адрес сервера из переменной окружения или используем относительный путь
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
-function getToken() {
+export function getToken() {
   return localStorage.getItem('token');
 }
 
@@ -325,11 +325,13 @@ export const api = {
 export function saveAuth(token, user) {
   localStorage.setItem('token', token);
   localStorage.setItem('user', JSON.stringify(user));
+  window.dispatchEvent(new Event('auth-changed'));
 }
 
 export function clearAuth() {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
+  window.dispatchEvent(new Event('auth-changed'));
 }
 
 export function getStoredUser() {

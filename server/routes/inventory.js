@@ -173,11 +173,10 @@ router.post('/consume', async (req, res) => {
 
 router.get('/expired/check', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT EXISTS (SELECT 1 FROM get_expired_lots()) AS has_expired'
-    );
+    const result = await pool.query('SELECT COUNT(*)::int AS count FROM get_expired_lots()');
+    const count = result.rows[0]?.count ?? 0;
 
-    res.json({ hasExpired: Boolean(result.rows[0]?.has_expired) });
+    res.json({ hasExpired: count > 0, count });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка сервера' });
