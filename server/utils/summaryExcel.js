@@ -41,31 +41,31 @@ function buildRowValues(item, shopNames) {
 
 function applyTableStyles(worksheet) {
   worksheet.eachRow((row, rowIndex) => {
-    row.eachCell({ includeEmpty: true }, (cell) => {
+    row.height = rowIndex === 1 ? 31.5 : 11;
+
+    row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
       cell.font = {
         name: 'Arial',
         size: 10,
-        bold: rowIndex === 1,
+        bold: false,
       };
-      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cell.alignment = {
+        horizontal: colNumber === 1 ? 'left' : 'center',
+        vertical: 'middle',
+        wrapText: true,
+      };
       cell.border = THIN_BLACK_BORDER;
     });
   });
 }
 
-function autoFitColumns(worksheet) {
-  const columnCount = worksheet.columnCount;
+function applyColumnWidths(worksheet) {
+  const columnCount = worksheet.columnCount || worksheet.getRow(1).cellCount;
 
-  for (let columnIndex = 1; columnIndex <= columnCount; columnIndex += 1) {
-    const column = worksheet.getColumn(columnIndex);
-    let maxLength = 8;
+  worksheet.getColumn(1).width = 20;
 
-    column.eachCell({ includeEmpty: true }, (cell) => {
-      const cellValue = cell.value == null ? '' : String(cell.value);
-      maxLength = Math.max(maxLength, cellValue.length);
-    });
-
-    column.width = Math.min(maxLength + 2, 30);
+  for (let columnIndex = 2; columnIndex <= columnCount; columnIndex += 1) {
+    worksheet.getColumn(columnIndex).width = 5.14;
   }
 }
 
@@ -86,7 +86,7 @@ async function buildSummaryWorkbook({ shopNames = [], data = [] }) {
   });
 
   applyTableStyles(worksheet);
-  autoFitColumns(worksheet);
+  applyColumnWidths(worksheet);
 
   worksheet.pageSetup = {
     orientation: 'landscape',
