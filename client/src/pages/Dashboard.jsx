@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { api } from '../api';
+import { downloadBlob } from '../utils/download';
 import AdminTopBar from '../components/AdminTopBar';
 import { useToast } from '../components/ToastContext';
 import {
@@ -50,6 +49,7 @@ function Dashboard() {
   const [editedRemainders, setEditedRemainders] = useState({});
   const [savingRemainders, setSavingRemainders] = useState(false);
   const [screenshotting, setScreenshotting] = useState(false);
+  const [exportingSummary, setExportingSummary] = useState(false);
 
   const summaryTableRef = useRef(null);
 
@@ -262,49 +262,41 @@ function Dashboard() {
     return { total, warehouse, motor, afterShip, overall };
   };
 
-  const toExcelValue = (value) => {
-    if (value === null || value === undefined) return undefined;
-    return value;
+  const handleExportSummary = async () => {
+    setExportingSummary(true);
+
+    try {
+      const shopNames = shopUsers.map((user) => user.login);
+      const data = globalProducts.map((product) => {
+        const { total, warehouse, motor, afterShip, overall } = getRowCalcs(product.id);
+
+        return {
+          productName: product.name,
+          shops: shopUsers.map((user) => getSummaryShipment(user.id, product.id)),
+          total,
+          warehouse,
+          warehouseAfterShipment: afterShip,
+          warehouseMotornaya: motor,
+          totalRemain: overall,
+        };
+      });
+
+      const blob = await api.exportSummary({
+        date: todayStr,
+        shopNames,
+        data,
+      });
+
+      downloadBlob(blob, `Сводка_${todayLabel}.xlsx`);
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || 'Не удалось экспортировать данные', 'error');
+    } finally {
+      setExportingSummary(false);
+    }
   };
 
-  const handleExportSummary = () => {
-    const headers = [
-      'Товар',
-      ...shopUsers.map((u) => u.login),
-      'итого',
-      'склад',
-      'склад после отг',
-      'склад Моторная',
-      'общий остаток',
-    ];
-
-    const rows = globalProducts.map((product) => {
-      const { total, warehouse, motor, afterShip, overall } = getRowCalcs(product.id);
-
-      return [
-        product.name,
-        ...shopUsers.map((u) => getSummaryShipment(u.id, product.id)),
-        total,
-        toExcelValue(warehouse),
-        toExcelValue(afterShip),
-        toExcelValue(motor),
-        toExcelValue(overall),
-      ];
-    });
-
-    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Сводка');
-    const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    saveAs(
-      new Blob([buffer], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      }),
-      `Сводка_${todayLabel}.xlsx`
-    );
-  };
-
-  const canExportSummary =
+  const canSummaryActions =
     !loading && globalProducts.length > 0 && shopUsers.length > 0;
 
   const handleScreenshotSummary = async () => {
@@ -936,7 +928,7 @@ function Dashboard() {
                   type="button"
                   className="btn-export"
                   onClick={handleScreenshotSummary}
-                  disabled={!canExportSummary || screenshotting}
+                  disabled={!canSummaryActions || screenshotting}
                 >
                   {screenshotting ? 'Скрин...' : 'Скрин'}
                 </button>
@@ -944,9 +936,9 @@ function Dashboard() {
                   type="button"
                   className="btn-export"
                   onClick={handleExportSummary}
-                  disabled={!canExportSummary}
+                  disabled={!canSummaryActions || exportingSummary}
                 >
-                  Экспорт
+                  {exportingSummary ? 'Экспорт...' : 'Экспорт'}
                 </button>
               </div>
             ) : null

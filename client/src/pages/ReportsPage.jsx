@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { saveAs } from 'file-saver';
 import { api } from '../api';
+import { downloadBlob } from '../utils/download';
 import AdminTopBar from '../components/AdminTopBar';
 import { useToast } from '../components/ToastContext';
 import {
@@ -197,7 +197,7 @@ function ReportsPage() {
 
     try {
       const blob = await api.downloadInvoice(invoice.id);
-      saveAs(blob, `Накладная_${formatInvoiceListDate(invoice.date)}.xlsx`);
+      downloadBlob(blob, `Накладная_${formatInvoiceListDate(invoice.date)}.xlsx`);
     } catch (err) {
       showToast(err.message, 'error');
     } finally {

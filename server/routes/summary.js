@@ -2,10 +2,41 @@ const express = require('express');
 const pool = require('../db');
 const { authMiddleware, adminOnly } = require('../middleware/auth');
 const { PRODUCT_CATEGORY_BEER } = require('../utils/productCategory');
+const { buildSummaryWorkbook } = require('../utils/summaryExcel');
 
 const router = express.Router();
 
 router.use(authMiddleware, adminOnly);
+
+router.post('/export', async (req, res) => {
+  const { date, shopNames, data } = req.body;
+
+  if (!date || !Array.isArray(data) || data.length === 0) {
+    return res.status(400).json({ error: 'Недостаточно данных для экспорта' });
+  }
+
+  if (!Array.isArray(shopNames)) {
+    return res.status(400).json({ error: 'Укажите список магазинов' });
+  }
+
+  try {
+    const buffer = await buildSummaryWorkbook({ shopNames, data });
+    const fileName = `Сводка_${date}.xlsx`;
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${fileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`
+    );
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка генерации Excel' });
+  }
+});
 
 router.get('/:date', async (req, res) => {
   const { date } = req.params;

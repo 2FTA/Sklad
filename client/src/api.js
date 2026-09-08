@@ -59,6 +59,35 @@ async function requestBlob(url) {
   return res.blob();
 }
 
+async function requestBlobPost(url, body) {
+  const token = getToken();
+
+  let res;
+
+  try {
+    res = await fetch(`${API_BASE}${url}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    logError('Network Error');
+    throw new Error('Network Error');
+  }
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const message = data.error || 'Ошибка запроса';
+    logError(message);
+    throw new Error(message);
+  }
+
+  return res.blob();
+}
+
 export const api = {
   login: (login, password) =>
     request('/auth/login', {
@@ -218,6 +247,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ date, items }),
     }),
+
+  exportSummary: (payload) => requestBlobPost('/summary/export', payload),
 
   getReports: () => request('/reports'),
 

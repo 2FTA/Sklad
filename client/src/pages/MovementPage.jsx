@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 // import html2canvas from 'html2canvas';
 // import jsPDF from 'jspdf';
 import ExcelJS from 'exceljs';
-import { saveAs } from 'file-saver';
+import { downloadBlob } from '../utils/download';
 import { api } from '../api';
 import AdminTopBar from '../components/AdminTopBar';
 import { useToast } from '../components/ToastContext';
@@ -491,7 +491,7 @@ function MovementPage() {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
 
-      saveAs(fileBlob, fileName);
+      downloadBlob(fileBlob, fileName);
       showToast('Файл сохранён и доступен в отчетах', 'success');
 
       /*
