@@ -193,7 +193,16 @@
   font-size: 0.85rem;
 }
 
-.summary-date-label {
+.summary-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.summary-pdf-target {
+  background: #fff;
+}
+
   background: #fff;
   padding: 1rem 1.25rem;
   border-radius: 10px;
