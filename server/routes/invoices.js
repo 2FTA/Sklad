@@ -107,12 +107,16 @@ router.get('/:id/download', async (req, res) => {
 
     const buffer = await generateInvoiceExcelBuffer(invoice, payload.items);
     const fileName = buildInvoiceFileName(invoice.date);
+    const encodedFileName = encodeURIComponent(fileName);
 
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     );
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${encodedFileName}"; filename*=UTF-8''${encodedFileName}`
+    );
     res.send(Buffer.from(buffer));
   } catch (err) {
     console.error(err);

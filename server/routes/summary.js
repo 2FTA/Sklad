@@ -22,6 +22,7 @@ router.post('/export', async (req, res) => {
   try {
     const buffer = await buildSummaryWorkbook({ shopNames, data });
     const fileName = `Сводка_${date}.xlsx`;
+    const encodedFileName = encodeURIComponent(fileName);
 
     res.setHeader(
       'Content-Type',
@@ -29,7 +30,7 @@ router.post('/export', async (req, res) => {
     );
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="${fileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`
+      `attachment; filename="${encodedFileName}"; filename*=UTF-8''${encodedFileName}`
     );
     res.send(Buffer.from(buffer));
   } catch (err) {
