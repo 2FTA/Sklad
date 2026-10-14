@@ -63,52 +63,41 @@ function Dashboard() {
     return map;
   }, [stocks]);
 
-  const getLocalShipments = useCallback(
-    (productId, dateStr) => {
-      const key = `${productId}-${dateStr}`;
-      const cell = stockMap[key];
-      if (shipmentInputs[key] !== undefined) {
-        return parseInt(shipmentInputs[key], 10) || 0;
+  const readShipmentTotal = (productId, dateStr) => {
+    const key = `${productId}-${dateStr}`;
+    if (Object.prototype.hasOwnProperty.call(shipmentInputs, key)) {
+      const raw = shipmentInputs[key];
+      if (raw === '' || raw === null || raw === undefined) {
+        return 0;
       }
-      return parseInt(cell?.shipments ?? 0, 10) || 0;
-    },
-    [stockMap, shipmentInputs]
-  );
+      return parseInt(String(raw), 10) || 0;
+    }
+    return parseInt(stockMap[key]?.shipments ?? 0, 10) || 0;
+  };
 
-  const getLocalTodayQuantity = useCallback(
-    (productId) => {
-      if (isEditingRemainder) {
-        const edited = editedRemainders[productId];
-        if (edited !== undefined && edited !== '') {
-          return parseInt(edited, 10) || 0;
-        }
+  const readTodayQuantityTotal = (productId) => {
+    if (isEditingRemainder) {
+      const edited = editedRemainders[productId];
+      if (edited !== undefined && edited !== '') {
+        return parseInt(edited, 10) || 0;
       }
+    }
+    return parseInt(stockMap[`${productId}-${todayStr}`]?.quantity ?? 0, 10) || 0;
+  };
 
-      const cell = stockMap[`${productId}-${todayStr}`];
-      return parseInt(cell?.quantity ?? 0, 10) || 0;
-    },
-    [stockMap, todayStr, isEditingRemainder, editedRemainders]
-  );
+  const totalOnStore = userProducts.reduce((sum, product) => {
+    if (productWeightMap[product.id] !== '1л') {
+      return sum;
+    }
+    return sum + readTodayQuantityTotal(product.id);
+  }, 0);
 
-  const totalOnStore = useMemo(() => {
-    return userProducts.reduce((sum, product) => {
-      if (productWeightMap[product.id] !== '1л') {
-        return sum;
-      }
-
-      return sum + getLocalTodayQuantity(product.id);
-    }, 0);
-  }, [userProducts, productWeightMap, getLocalTodayQuantity]);
-
-  const totalShipments = useMemo(() => {
-    return userProducts.reduce((sum, product) => {
-      if (productWeightMap[product.id] !== '1л') {
-        return sum;
-      }
-
-      return sum + getLocalShipments(product.id, todayStr);
-    }, 0);
-  }, [userProducts, productWeightMap, getLocalShipments, todayStr]);
+  const totalShipments = userProducts.reduce((sum, product) => {
+    if (productWeightMap[product.id] !== '1л') {
+      return sum;
+    }
+    return sum + readShipmentTotal(product.id, todayStr);
+  }, 0);
 
   const freeSpace =
     storeCapacity !== null ? storeCapacity - totalOnStore - totalShipments : null;
@@ -181,8 +170,10 @@ function Dashboard() {
       const returnInit = {};
 
       for (const s of stocksResponse.stocks || []) {
+        if (s.date !== todayStr) continue;
         const key = `${s.productId}-${s.date}`;
-        shipmentInit[key] = s.shipments ?? 0;
+        shipmentInit[key] =
+          s.shipments === 0 || s.shipments == null ? '' : s.shipments;
         movementInit[key] = s.movement === 0 || s.movement == null ? '' : s.movement;
         returnInit[key] = s.return === 0 || s.return == null ? '' : s.return;
       }
@@ -195,7 +186,7 @@ function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [activeView, dateRange]);
+  }, [activeView, dateRange, todayStr, showToast]);
 
   useEffect(() => {
     loadUsers();
@@ -315,12 +306,7 @@ function Dashboard() {
   };
 
   const getShipments = (productId, dateStr) => {
-    const key = `${productId}-${dateStr}`;
-    const cell = getCellData(productId, dateStr);
-    if (shipmentInputs[key] !== undefined) {
-      return parseInt(shipmentInputs[key], 10) || 0;
-    }
-    return cell?.shipments ?? 0;
+    return readShipmentTotal(productId, dateStr);
   };
 
   const getMovement = (productId, dateStr) => {
@@ -346,7 +332,8 @@ function Dashboard() {
 
     setStocks((prev) => {
       const idx = prev.findIndex(
-        (item) => item.productId === productId && item.date === dateStr
+        (item) =>
+          Number(item.productId) === Number(productId) && item.date === dateStr
       );
 
       if (idx >= 0) {

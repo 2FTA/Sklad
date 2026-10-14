@@ -58,7 +58,7 @@ function AdminHouseholdPage() {
   const hasRequests = groups.some((group) => group.requests.length > 0);
 
   return (
-    <div className="page-layout">
+    <div className="page-layout household-page">
       <AdminTopBar title="Хоз товары" />
 
       <div className="content-area admin-content-area household-scroll-content">

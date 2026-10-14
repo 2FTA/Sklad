@@ -1,7 +1,9 @@
-.household-scroll-content {
+.page-layout.household-page > .content-area.admin-content-area.household-scroll-content {
   flex: 1;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .household-groups {
