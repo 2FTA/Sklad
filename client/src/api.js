@@ -242,6 +242,8 @@ export const api = {
   deleteHouseholdRequest: (id) =>
     request(`/household/${id}`, { method: 'DELETE' }),
 
+  exportHousehold: (payload) => requestBlobPost('/household/export', payload),
+
   saveSummary: (date, items) =>
     request('/summary', {
       method: 'POST',

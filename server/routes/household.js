@@ -4,6 +4,7 @@ const { authMiddleware, adminOnly } = require('../middleware/auth');
 const {
   PRODUCT_CATEGORY_HOUSEHOLD,
 } = require('../utils/productCategory');
+const { buildHouseholdWorkbook } = require('../utils/householdExcel');
 
 const router = express.Router();
 
@@ -107,6 +108,64 @@ router.post('/', async (req, res) => {
     res.status(status).json({ error: message });
   } finally {
     client.release();
+  }
+});
+
+router.post('/export', adminOnly, async (req, res) => {
+  const { shopName, items } = req.body;
+
+  if (!shopName || typeof shopName !== 'string' || !shopName.trim()) {
+    return res.status(400).json({ error: 'Укажите название магазина' });
+  }
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Выберите хотя бы один товар' });
+  }
+
+  const normalizedItems = [];
+
+  for (const item of items) {
+    const name = item?.name;
+    const quantity = parseInt(item?.quantity, 10);
+
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Некорректное наименование товара' });
+    }
+
+    if (isNaN(quantity) || quantity < 0) {
+      return res.status(400).json({ error: 'Некорректное количество товара' });
+    }
+
+    normalizedItems.push({ name: name.trim(), quantity });
+  }
+
+  try {
+    const buffer = await buildHouseholdWorkbook({
+      shopName: shopName.trim(),
+      items: normalizedItems,
+    });
+
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    const dateStr = `${y}-${m}-${d}`;
+    const safeShop = shopName.trim().replace(/[/\\?%*:|"<>]/g, '_');
+    const fileName = `Хозтовары_${safeShop}_${dateStr}.xlsx`;
+    const encodedFileName = encodeURIComponent(fileName);
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${encodedFileName}"; filename*=UTF-8''${encodedFileName}`
+    );
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка генерации Excel' });
   }
 });
 
