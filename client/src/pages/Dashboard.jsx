@@ -1,6 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../api';
 import { downloadBlob } from '../utils/download';
 import AdminTopBar from '../components/AdminTopBar';
@@ -48,10 +46,7 @@ function Dashboard() {
   const [isEditingRemainder, setIsEditingRemainder] = useState(false);
   const [editedRemainders, setEditedRemainders] = useState({});
   const [savingRemainders, setSavingRemainders] = useState(false);
-  const [screenshotting, setScreenshotting] = useState(false);
   const [exportingSummary, setExportingSummary] = useState(false);
-
-  const summaryTableRef = useRef(null);
 
   const selectedUser = shopUsers.find((u) => u.id === activeView);
   const storeCapacity =
@@ -68,19 +63,42 @@ function Dashboard() {
     return map;
   }, [stocks]);
 
+  const getLocalShipments = useCallback(
+    (productId, dateStr) => {
+      const key = `${productId}-${dateStr}`;
+      const cell = stockMap[key];
+      if (shipmentInputs[key] !== undefined) {
+        return parseInt(shipmentInputs[key], 10) || 0;
+      }
+      return parseInt(cell?.shipments ?? 0, 10) || 0;
+    },
+    [stockMap, shipmentInputs]
+  );
+
+  const getLocalTodayQuantity = useCallback(
+    (productId) => {
+      if (isEditingRemainder) {
+        const edited = editedRemainders[productId];
+        if (edited !== undefined && edited !== '') {
+          return parseInt(edited, 10) || 0;
+        }
+      }
+
+      const cell = stockMap[`${productId}-${todayStr}`];
+      return parseInt(cell?.quantity ?? 0, 10) || 0;
+    },
+    [stockMap, todayStr, isEditingRemainder, editedRemainders]
+  );
+
   const totalOnStore = useMemo(() => {
     return userProducts.reduce((sum, product) => {
       if (productWeightMap[product.id] !== '1л') {
         return sum;
       }
 
-      const key = `${product.id}-${todayStr}`;
-      const cell = stockMap[key];
-      const quantity = parseInt(cell?.quantity ?? 0, 10) || 0;
-
-      return sum + quantity;
+      return sum + getLocalTodayQuantity(product.id);
     }, 0);
-  }, [userProducts, productWeightMap, stockMap, todayStr]);
+  }, [userProducts, productWeightMap, getLocalTodayQuantity]);
 
   const totalShipments = useMemo(() => {
     return userProducts.reduce((sum, product) => {
@@ -88,16 +106,9 @@ function Dashboard() {
         return sum;
       }
 
-      const key = `${product.id}-${todayStr}`;
-      const cell = stockMap[key];
-      const shipments =
-        shipmentInputs[key] !== undefined
-          ? parseInt(shipmentInputs[key], 10) || 0
-          : parseInt(cell?.shipments ?? 0, 10) || 0;
-
-      return sum + shipments;
+      return sum + getLocalShipments(product.id, todayStr);
     }, 0);
-  }, [userProducts, productWeightMap, stockMap, shipmentInputs, todayStr]);
+  }, [userProducts, productWeightMap, getLocalShipments, todayStr]);
 
   const freeSpace =
     storeCapacity !== null ? storeCapacity - totalOnStore - totalShipments : null;
@@ -299,97 +310,6 @@ function Dashboard() {
   const canSummaryActions =
     !loading && globalProducts.length > 0 && shopUsers.length > 0;
 
-  const handleScreenshotSummary = async () => {
-    if (!summaryTableRef.current) {
-      showToast('Таблица не найдена', 'error');
-      return;
-    }
-
-    setScreenshotting(true);
-
-    const target = summaryTableRef.current;
-    const scrollContainer = target.closest('.summary-scroll-container');
-    const savedStyles = [];
-
-    const expandElement = (element) => {
-      if (!element) return;
-      savedStyles.push({
-        element,
-        overflow: element.style.overflow,
-        maxHeight: element.style.maxHeight,
-        height: element.style.height,
-      });
-      element.style.overflow = 'visible';
-      element.style.maxHeight = 'none';
-      element.style.height = 'auto';
-    };
-
-    expandElement(scrollContainer);
-    expandElement(target);
-
-    try {
-      const canvas = await html2canvas(target, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        onclone: (clonedDoc) => {
-          const table = clonedDoc.querySelector('.summary-table');
-          if (!table) return;
-
-          table.querySelectorAll('th, td').forEach((cell) => {
-            cell.style.border = '1px solid #000';
-            cell.style.boxShadow = 'none';
-          });
-
-          table.querySelectorAll('th').forEach((cell) => {
-            cell.style.position = 'static';
-          });
-
-          table.querySelectorAll('input').forEach((input) => {
-            const text = clonedDoc.createElement('span');
-            text.textContent = input.value || '';
-            text.style.display = 'inline-block';
-            text.style.minWidth = '24px';
-            text.style.textAlign = 'center';
-            input.replaceWith(text);
-          });
-        },
-      });
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('landscape', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const margin = 10;
-      const maxWidth = pdfWidth - margin * 2;
-      const maxHeight = pdfHeight - margin * 2;
-
-      let imgWidth = maxWidth;
-      let imgHeight = (canvas.height / canvas.width) * imgWidth;
-
-      if (imgHeight > maxHeight) {
-        imgHeight = maxHeight;
-        imgWidth = (canvas.width / canvas.height) * imgHeight;
-      }
-
-      const x = (pdfWidth - imgWidth) / 2;
-      const y = (pdfHeight - imgHeight) / 2;
-
-      pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
-      pdf.save(`Сводка_${todayLabel}.pdf`);
-    } catch (err) {
-      console.error(err);
-      showToast('Не удалось создать PDF', 'error');
-    } finally {
-      savedStyles.forEach(({ element, overflow, maxHeight, height }) => {
-        element.style.overflow = overflow;
-        element.style.maxHeight = maxHeight;
-        element.style.height = height;
-      });
-      setScreenshotting(false);
-    }
-  };
-
   const getCellData = (productId, dateStr) => {
     return stockMap[`${productId}-${dateStr}`] || null;
   };
@@ -421,6 +341,34 @@ function Dashboard() {
     return parseInt(cell?.return ?? 0, 10) || 0;
   };
 
+  const patchLocalStockField = (productId, dateStr, field, rawValue) => {
+    const numericValue = parseInt(rawValue, 10) || 0;
+
+    setStocks((prev) => {
+      const idx = prev.findIndex(
+        (item) => item.productId === productId && item.date === dateStr
+      );
+
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], [field]: numericValue };
+        return next;
+      }
+
+      return [
+        ...prev,
+        {
+          productId,
+          date: dateStr,
+          quantity: null,
+          shipments: field === 'shipments' ? numericValue : 0,
+          movement: field === 'movement' ? numericValue : 0,
+          return: field === 'return' ? numericValue : 0,
+        },
+      ];
+    });
+  };
+
   const handleTodayFieldChange = (productId, dateStr, field, value) => {
     if (dateStr !== todayStr) return;
 
@@ -435,6 +383,8 @@ function Dashboard() {
       ...prev,
       [key]: value,
     }));
+
+    patchLocalStockField(productId, dateStr, field, value);
   };
 
   const mergeSavedStockRows = (savedRows) => {
@@ -737,10 +687,7 @@ function Dashboard() {
     return (
       <div className="table-panel summary-table-panel">
         <div className="stock-scroll-container summary-scroll-container">
-          <div
-            ref={summaryTableRef}
-            className="products-table-wrapper summary-table-wrapper summary-pdf-target"
-          >
+          <div className="products-table-wrapper summary-table-wrapper summary-pdf-target">
           <table className="products-table summary-table">
             <thead>
               <tr>
@@ -924,14 +871,6 @@ function Dashboard() {
           leftExtra={
             activeView === 'summary' ? (
               <div className="summary-toolbar-actions">
-                <button
-                  type="button"
-                  className="btn-export"
-                  onClick={handleScreenshotSummary}
-                  disabled={!canSummaryActions || screenshotting}
-                >
-                  {screenshotting ? 'Скрин...' : 'Скрин'}
-                </button>
                 <button
                   type="button"
                   className="btn-export"

@@ -61,7 +61,7 @@ function AdminHouseholdPage() {
     <div className="page-layout">
       <AdminTopBar title="Хоз товары" />
 
-      <div className="content-area admin-content-area">
+      <div className="content-area admin-content-area household-scroll-content">
         {loading ? (
           <div className="loading">Загрузка...</div>
         ) : !hasRequests ? (
