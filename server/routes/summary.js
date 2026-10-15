@@ -39,6 +39,51 @@ router.post('/export', async (req, res) => {
   }
 });
 
+router.get('/motor-report', async (req, res) => {
+  const userId = parseInt(req.query.userId, 10);
+  const { startDate, endDate } = req.query;
+
+  if (!userId || isNaN(userId) || !startDate || !endDate) {
+    return res.status(400).json({ error: 'Не указаны параметры' });
+  }
+
+  try {
+    const user = await pool.query(
+      "SELECT id FROM users WHERE id = $1 AND role = 'motor'",
+      [userId]
+    );
+
+    if (user.rows.length === 0) {
+      return res.status(400).json({ error: 'Пользователь motor не найден' });
+    }
+
+    const result = await pool.query(
+      `SELECT ss.product_id AS "productId",
+              ss.date::text AS date,
+              ss.warehouse_motornaya AS quantity
+       FROM summary_stocks ss
+       JOIN global_products gp ON gp.id = ss.product_id
+       WHERE ss.date >= $1::date
+         AND ss.date <= $2::date
+         AND gp.category = $3
+         AND ss.warehouse_motornaya IS NOT NULL
+       ORDER BY ss.date DESC`,
+      [startDate, endDate, PRODUCT_CATEGORY_BEER]
+    );
+
+    res.json(
+      result.rows.map((row) => ({
+        productId: row.productId,
+        date: row.date,
+        quantity: row.quantity,
+      }))
+    );
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка загрузки' });
+  }
+});
+
 router.get('/:date', async (req, res) => {
   const { date } = req.params;
 

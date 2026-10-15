@@ -263,6 +263,11 @@ export const api = {
 
   getSummary: (date) => request(`/summary/${date}`),
 
+  getMotorReport: (userId, startDate, endDate) =>
+    request(
+      `/summary/motor-report?userId=${encodeURIComponent(userId)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
+    ),
+
   getHouseholdRequests: () => request('/household'),
 
   createHouseholdRequests: (items) =>

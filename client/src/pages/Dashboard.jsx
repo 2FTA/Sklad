@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../api';
 import { downloadBlob } from '../utils/download';
 import AdminTopBar from '../components/AdminTopBar';
+import SimplifiedMotorReport from '../components/SimplifiedMotorReport';
 import { useToast } from '../components/ToastContext';
 import {
   getAdminStockDays,
@@ -30,6 +31,7 @@ function Dashboard() {
 
   const [activeView, setActiveView] = useState('summary');
   const [shopUsers, setShopUsers] = useState([]);
+  const [motorUser, setMotorUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -48,7 +50,10 @@ function Dashboard() {
   const [savingRemainders, setSavingRemainders] = useState(false);
   const [exportingSummary, setExportingSummary] = useState(false);
 
-  const selectedUser = shopUsers.find((u) => u.id === activeView);
+  const isMotorView = motorUser != null && activeView === motorUser.id;
+  const selectedUser = isMotorView
+    ? motorUser
+    : shopUsers.find((u) => u.id === activeView);
   const storeCapacity =
     selectedUser?.role === 'user' ? (selectedUser.capacity ?? 1000) : null;
   const stockMap = useMemo(() => buildStockMap(stocks), [stocks]);
@@ -106,10 +111,11 @@ function Dashboard() {
     try {
       const data = await api.getUsers();
       setShopUsers(data.filter((u) => u.role === 'user'));
+      setMotorUser(data.find((u) => u.role === 'motor') || null);
     } catch (err) {
       showToast(err.message, 'error');
     }
-  }, []);
+  }, [showToast]);
 
   const loadSummaryData = useCallback(async () => {
     setLoading(true);
@@ -195,10 +201,12 @@ function Dashboard() {
   useEffect(() => {
     if (activeView === 'summary') {
       loadSummaryData();
+    } else if (isMotorView) {
+      setLoading(false);
     } else {
       loadUserData();
     }
-  }, [activeView, loadSummaryData, loadUserData]);
+  }, [activeView, isMotorView, loadSummaryData, loadUserData]);
 
   useEffect(() => {
     setIsEditingRemainder(false);
@@ -839,6 +847,14 @@ function Dashboard() {
           >
             <span className="user-item-name">Сводка</span>
           </div>
+          {motorUser && (
+            <div
+              className={`user-item ${activeView === motorUser.id ? 'active' : ''}`}
+              onClick={() => handleSelectView(motorUser.id)}
+            >
+              <span className="user-item-name">{motorUser.login} (Моторная)</span>
+            </div>
+          )}
           {shopUsers.map((user) => (
             <div
               key={user.id}
@@ -876,6 +892,16 @@ function Dashboard() {
             <div className="loading">Загрузка...</div>
           ) : activeView === 'summary' ? (
             renderSummaryView()
+          ) : isMotorView ? (
+            globalProducts.length === 0 ? (
+              <div className="empty-state">Товаров пока нет</div>
+            ) : (
+              <SimplifiedMotorReport
+                userId={motorUser.id}
+                products={globalProducts}
+                dates={dates}
+              />
+            )
           ) : (
             renderUserView()
           )}

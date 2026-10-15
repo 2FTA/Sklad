@@ -2,16 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, clearAuth, getStoredUser } from '../api';
 import { useToast } from '../components/ToastContext';
-import {
-  formatDateFull,
-  getToday,
-  getTomorrowISO,
-  getLast15Days,
-  formatDateLabel,
-  isMonday,
-  toISODate,
-  buildStockMap,
-} from '../utils/dates';
+import { formatDateFull, getToday, getTomorrowISO, toISODate } from '../utils/dates';
 import './Dashboard.css';
 import './UserPage.css';
 
@@ -23,41 +14,14 @@ function UserPage() {
   const isUser = currentUser?.role === 'user';
   const today = useMemo(() => getToday(), []);
   const todayLabel = formatDateFull(today);
-  const reportDates = useMemo(() => getLast15Days(), []);
-  const reportDateRange = useMemo(() => {
-    const startDate = toISODate(reportDates[reportDates.length - 1]);
-    const endDate = toISODate(reportDates[0]);
-    return { startDate, endDate };
-  }, [reportDates]);
 
   const [activeCategory, setActiveCategory] = useState('beer');
   const [products, setProducts] = useState([]);
   const [quantities, setQuantities] = useState({});
-  const [reportStocks, setReportStocks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const isBeer = activeCategory === 'beer';
-  const reportStockMap = useMemo(() => buildStockMap(reportStocks), [reportStocks]);
-
-  const loadMotorReport = useCallback(async () => {
-    if (!isMotor || !currentUser?.id) {
-      setReportStocks([]);
-      return;
-    }
-
-    try {
-      const stocksResponse = await api.getStocks(
-        currentUser.id,
-        reportDateRange.startDate,
-        reportDateRange.endDate
-      );
-      setReportStocks(stocksResponse.stocks || []);
-    } catch (err) {
-      showToast(err.message, 'error');
-      setReportStocks([]);
-    }
-  }, [currentUser?.id, isMotor, reportDateRange, showToast]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -74,18 +38,12 @@ function UserPage() {
       });
 
       setQuantities(inputs);
-
-      if (isMotor) {
-        await loadMotorReport();
-      } else {
-        setReportStocks([]);
-      }
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
-  }, [activeCategory, isMotor, loadMotorReport, showToast]);
+  }, [activeCategory, isMotor, showToast]);
 
   useEffect(() => {
     loadData();
@@ -135,35 +93,12 @@ function UserPage() {
         showToast('Запрос отправлен', 'success');
       }
 
-      if (isMotor) {
-        await loadMotorReport();
-      } else {
-        await loadData();
-      }
+      await loadData();
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
       setSaving(false);
     }
-  };
-
-  const renderMotorReportCell = (productId, dateStr) => {
-    const cell = reportStockMap[`${productId}-${dateStr}`];
-    const quantity = cell?.quantity;
-
-    if (quantity === null || quantity === undefined) {
-      return (
-        <td key={productId} className="stock-cell motor-report-cell empty-cell">
-          —
-        </td>
-      );
-    }
-
-    return (
-      <td key={productId} className="stock-cell motor-report-cell">
-        <span className="stock-qty">{quantity}</span>
-      </td>
-    );
   };
 
   return (
@@ -178,9 +113,7 @@ function UserPage() {
         </div>
       </div>
 
-      <div
-        className={`content-area user-page-content ${isMotor ? 'user-page-content-motor' : ''}`}
-      >
+      <div className="content-area user-page-content">
         {isUser && (
           <div className="product-category-tabs user-category-tabs">
             <button
@@ -228,40 +161,6 @@ function UserPage() {
               {saving ? 'Сохранение...' : isBeer || isMotor ? 'Сохранить' : 'Отправить запрос'}
             </button>
           </form>
-        )}
-
-        {isMotor && !loading && products.length > 0 && (
-          <section className="motor-daily-report">
-            <h2 className="motor-daily-report-title">Дневной отчёт</h2>
-            <div className="stock-scroll-container motor-report-scroll">
-              <div className="products-table-wrapper stock-grid-wrapper">
-                <table className="products-table stock-grid-table motor-report-table">
-                  <thead>
-                    <tr>
-                      <th className="date-col">Дата</th>
-                      {products.map((product) => (
-                        <th key={product.id}>{product.name}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reportDates.map((date) => {
-                      const dateStr = toISODate(date);
-                      return (
-                        <tr
-                          key={dateStr}
-                          className={isMonday(date) ? 'monday-row' : ''}
-                        >
-                          <td className="date-col">{formatDateLabel(date)}</td>
-                          {products.map((product) => renderMotorReportCell(product.id, dateStr))}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </section>
         )}
       </div>
     </div>
