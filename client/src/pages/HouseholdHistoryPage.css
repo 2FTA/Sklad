@@ -139,6 +139,12 @@
   table-layout: auto;
 }
 
+.household-history-table th,
+.household-history-table td {
+  padding: 4px 12px;
+  line-height: 1.2;
+}
+
 .household-history-table .text-center {
   text-align: center;
 }
