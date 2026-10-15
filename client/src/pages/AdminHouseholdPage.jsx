@@ -27,7 +27,7 @@ function AdminHouseholdPage() {
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
-  const [selectedShopId, setSelectedShopId] = useState(null);
+  const [selectedShopIds, setSelectedShopIds] = useState([]);
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [exporting, setExporting] = useState(false);
 
@@ -64,8 +64,19 @@ function AdminHouseholdPage() {
   };
 
   const handleShopChange = (userId) => {
-    setSelectedShopId((prev) => (prev === userId ? null : userId));
-    setSelectedItemIds([]);
+    setSelectedShopIds((prev) => {
+      if (prev.includes(userId)) {
+        const group = groups.find((g) => g.userId === userId);
+        if (group) {
+          const shopRequestIds = new Set(group.requests.map((request) => request.id));
+          setSelectedItemIds((itemIds) =>
+            itemIds.filter((itemId) => !shopRequestIds.has(itemId))
+          );
+        }
+        return prev.filter((id) => id !== userId);
+      }
+      return [...prev, userId];
+    });
   };
 
   const handleItemChange = (requestId) => {
@@ -77,38 +88,45 @@ function AdminHouseholdPage() {
     });
   };
 
-  const canExport = selectedShopId !== null && selectedItemIds.length > 0;
-
-  const handleExport = async () => {
-    if (!canExport) return;
-
-    const selectedGroup = groups.find((group) => group.userId === selectedShopId);
-    if (!selectedGroup) {
-      showToast('Магазин не найден', 'error');
-      return;
+  const hasExportSelection = useMemo(() => {
+    if (selectedShopIds.length === 0 || selectedItemIds.length === 0) {
+      return false;
     }
 
-    const items = selectedGroup.requests
-      .filter((request) => selectedItemIds.includes(request.id))
-      .map((request) => ({
-        name: request.productName,
-        quantity: request.quantity,
-      }));
+    const selectedShopSet = new Set(selectedShopIds);
+    return groups.some(
+      (group) =>
+        selectedShopSet.has(group.userId) &&
+        group.requests.some((request) => selectedItemIds.includes(request.id))
+    );
+  }, [groups, selectedShopIds, selectedItemIds]);
 
-    if (items.length === 0) {
+  const handleExport = async () => {
+    if (!hasExportSelection) return;
+
+    const selectedShopSet = new Set(selectedShopIds);
+    const shops = groups
+      .filter((group) => selectedShopSet.has(group.userId))
+      .map((group) => ({
+        shopName: group.shopName,
+        items: group.requests
+          .filter((request) => selectedItemIds.includes(request.id))
+          .map((request) => ({
+            name: request.productName,
+            quantity: request.quantity,
+          })),
+      }))
+      .filter((shop) => shop.items.length > 0);
+
+    if (shops.length === 0) {
       showToast('Выберите хотя бы один товар', 'error');
       return;
     }
 
     setExporting(true);
     try {
-      const blob = await api.exportHousehold({
-        shopName: selectedGroup.shopName,
-        items,
-      });
-
-      const safeShop = selectedGroup.shopName.replace(/[/\\?%*:|"<>]/g, '_');
-      downloadBlob(blob, `Хозтовары_${safeShop}_${todayStr}.xlsx`);
+      const blob = await api.exportHousehold({ shops });
+      downloadBlob(blob, `Хозтовары_${todayStr}.xlsx`);
     } catch (err) {
       showToast(err.message || 'Не удалось экспортировать данные', 'error');
     } finally {
@@ -129,7 +147,7 @@ function AdminHouseholdPage() {
               type="button"
               className="btn-export"
               onClick={handleExport}
-              disabled={!canExport || exporting}
+              disabled={!hasExportSelection || exporting}
             >
               {exporting ? 'Экспорт...' : 'Экспорт'}
             </button>
@@ -150,7 +168,7 @@ function AdminHouseholdPage() {
                     <input
                       type="checkbox"
                       className="household-shop-checkbox"
-                      checked={selectedShopId === group.userId}
+                      checked={selectedShopIds.includes(group.userId)}
                       onChange={() => handleShopChange(group.userId)}
                       aria-label={`Выбрать магазин ${group.shopName}`}
                     />
@@ -173,7 +191,7 @@ function AdminHouseholdPage() {
                               <input
                                 type="checkbox"
                                 checked={selectedItemIds.includes(request.id)}
-                                disabled={selectedShopId !== group.userId}
+                                disabled={!selectedShopIds.includes(group.userId)}
                                 onChange={() => handleItemChange(request.id)}
                                 aria-label={`Выбрать ${request.productName}`}
                               />

@@ -9,33 +9,49 @@ const THIN_BLACK_BORDER = {
 
 const DEFAULT_FONT = { name: 'Arial', size: 10 };
 
-function applyCellStyle(cell) {
+function styleDataCell(cell) {
   cell.border = THIN_BLACK_BORDER;
   cell.font = DEFAULT_FONT;
 }
 
-async function buildHouseholdWorkbook({ shopName, items = [] }) {
+function styleHeaderCell(cell) {
+  cell.border = THIN_BLACK_BORDER;
+  cell.font = { ...DEFAULT_FONT, bold: true };
+}
+
+async function buildHouseholdWorkbook({ shops = [] }) {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Хозтовары');
 
-  const shopCell = worksheet.getCell('A1');
-  shopCell.value = shopName;
-  applyCellStyle(shopCell);
+  shops.forEach((shop, index) => {
+    const startCol = 1 + index * 2;
 
-  items.forEach((item, index) => {
-    const rowNumber = index + 2;
-    const nameCell = worksheet.getCell(`A${rowNumber}`);
-    const qtyCell = worksheet.getCell(`B${rowNumber}`);
+    const headerCell = worksheet.getCell(1, startCol);
+    headerCell.value = shop.shopName;
+    styleHeaderCell(headerCell);
 
-    nameCell.value = item.name;
-    qtyCell.value = item.quantity;
+    shop.items.forEach((item, rowIndex) => {
+      const row = rowIndex + 2;
+      const nameCell = worksheet.getCell(row, startCol);
+      const qtyCell = worksheet.getCell(row, startCol + 1);
 
-    applyCellStyle(nameCell);
-    applyCellStyle(qtyCell);
+      nameCell.value = item.name;
+      qtyCell.value = item.quantity;
+
+      styleDataCell(nameCell);
+      styleDataCell(qtyCell);
+    });
+
+    worksheet.getColumn(startCol).width = 40;
+    worksheet.getColumn(startCol + 1).width = 12;
   });
 
-  worksheet.getColumn(1).width = 40;
-  worksheet.getColumn(2).width = 12;
+  worksheet.pageSetup = {
+    orientation: 'landscape',
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+  };
 
   return workbook.xlsx.writeBuffer();
 }

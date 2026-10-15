@@ -112,46 +112,55 @@ router.post('/', async (req, res) => {
 });
 
 router.post('/export', adminOnly, async (req, res) => {
-  const { shopName, items } = req.body;
+  const { shops } = req.body;
 
-  if (!shopName || typeof shopName !== 'string' || !shopName.trim()) {
-    return res.status(400).json({ error: 'Укажите название магазина' });
+  if (!Array.isArray(shops) || shops.length === 0) {
+    return res.status(400).json({ error: 'Нет данных для экспорта' });
   }
 
-  if (!Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ error: 'Выберите хотя бы один товар' });
-  }
+  const normalizedShops = [];
 
-  const normalizedItems = [];
+  for (const shop of shops) {
+    const shopName = shop?.shopName;
+    const items = shop?.items;
 
-  for (const item of items) {
-    const name = item?.name;
-    const quantity = parseInt(item?.quantity, 10);
-
-    if (!name || typeof name !== 'string' || !name.trim()) {
-      return res.status(400).json({ error: 'Некорректное наименование товара' });
+    if (!shopName || typeof shopName !== 'string' || !shopName.trim()) {
+      return res.status(400).json({ error: 'Укажите название магазина' });
     }
 
-    if (isNaN(quantity) || quantity < 0) {
-      return res.status(400).json({ error: 'Некорректное количество товара' });
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Выберите хотя бы один товар' });
     }
 
-    normalizedItems.push({ name: name.trim(), quantity });
+    const normalizedItems = [];
+
+    for (const item of items) {
+      const name = item?.name;
+      const quantity = parseInt(item?.quantity, 10);
+
+      if (!name || typeof name !== 'string' || !name.trim()) {
+        return res.status(400).json({ error: 'Некорректное наименование товара' });
+      }
+
+      if (isNaN(quantity) || quantity < 0) {
+        return res.status(400).json({ error: 'Некорректное количество товара' });
+      }
+
+      normalizedItems.push({ name: name.trim(), quantity });
+    }
+
+    normalizedShops.push({ shopName: shopName.trim(), items: normalizedItems });
   }
 
   try {
-    const buffer = await buildHouseholdWorkbook({
-      shopName: shopName.trim(),
-      items: normalizedItems,
-    });
+    const buffer = await buildHouseholdWorkbook({ shops: normalizedShops });
 
     const today = new Date();
     const y = today.getFullYear();
     const m = String(today.getMonth() + 1).padStart(2, '0');
     const d = String(today.getDate()).padStart(2, '0');
     const dateStr = `${y}-${m}-${d}`;
-    const safeShop = shopName.trim().replace(/[/\\?%*:|"<>]/g, '_');
-    const fileName = `Хозтовары_${safeShop}_${dateStr}.xlsx`;
+    const fileName = `Хозтовары_${dateStr}.xlsx`;
     const encodedFileName = encodeURIComponent(fileName);
 
     res.setHeader(
