@@ -185,21 +185,16 @@ function AdminHouseholdPage() {
                     <table className="products-table household-table">
                       <thead>
                         <tr>
-                          <th className="household-col-name">Наименование</th>
-                          <th className="text-center household-col-qty">Количество</th>
-                          <th className="household-col-date">Дата запроса</th>
                           <th className="text-center household-check-col" aria-label="Выбор" />
+                          <th className="household-col-name">Наименование</th>
+                          <th className="text-left household-col-qty">Количество</th>
+                          <th className="text-left household-col-date">Дата запроса</th>
                           <th className="text-center household-col-action">Действие</th>
                         </tr>
                       </thead>
                       <tbody>
                         {group.requests.map((request) => (
                           <tr key={request.id}>
-                            <td className="household-col-name">{request.productName}</td>
-                            <td className="text-center household-col-qty">{request.quantity}</td>
-                            <td className="household-col-date">
-                              {formatRequestDate(request.requestDate)}
-                            </td>
                             <td className="text-center household-check-col">
                               <input
                                 type="checkbox"
@@ -209,6 +204,11 @@ function AdminHouseholdPage() {
                                 onChange={() => handleItemChange(request.id)}
                                 aria-label={`Выбрать ${request.productName}`}
                               />
+                            </td>
+                            <td className="household-col-name">{request.productName}</td>
+                            <td className="text-left household-col-qty">{request.quantity}</td>
+                            <td className="text-left household-col-date">
+                              {formatRequestDate(request.requestDate)}
                             </td>
                             <td className="text-center household-col-action">
                               <button

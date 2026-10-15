@@ -126,6 +126,31 @@
   align-items: center;
 }
 
+.household-history-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.household-history-table .text-left {
+  text-align: left;
+}
+
+.household-history-col-name {
+  width: 40%;
+}
+
+.household-history-col-qty {
+  width: 15%;
+}
+
+.household-history-col-request {
+  width: 22%;
+}
+
+.household-history-col-shipment {
+  width: 23%;
+}
+
 @media (max-width: 768px) {
   .household-history-toolbar {
     grid-template-columns: 1fr;

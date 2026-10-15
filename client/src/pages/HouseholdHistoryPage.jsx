@@ -227,22 +227,26 @@ function HouseholdHistoryPage() {
           <div className="empty-state">История пуста</div>
         ) : (
           <div className="products-table-wrapper household-table-wrapper">
-            <table className="products-table household-table">
+            <table className="products-table household-table household-history-table">
               <thead>
                 <tr>
-                  <th>Наименование</th>
-                  <th className="text-center">Количество</th>
-                  <th>Дата запроса</th>
-                  <th>Дата отгрузки</th>
+                  <th className="text-left household-history-col-name">Наименование</th>
+                  <th className="text-left household-history-col-qty">Количество</th>
+                  <th className="text-left household-history-col-request">Дата запроса</th>
+                  <th className="text-left household-history-col-shipment">Дата отгрузки</th>
                 </tr>
               </thead>
               <tbody>
                 {history.map((row) => (
                   <tr key={row.id}>
-                    <td>{row.productName}</td>
-                    <td className="text-center">{row.quantity}</td>
-                    <td>{formatDateTime(row.requestDate)}</td>
-                    <td>{formatDateOnly(row.shipmentDate)}</td>
+                    <td className="text-left household-history-col-name">{row.productName}</td>
+                    <td className="text-left household-history-col-qty">{row.quantity}</td>
+                    <td className="text-left household-history-col-request">
+                      {formatDateTime(row.requestDate)}
+                    </td>
+                    <td className="text-left household-history-col-shipment">
+                      {formatDateOnly(row.shipmentDate)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
