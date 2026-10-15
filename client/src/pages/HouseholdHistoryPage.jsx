@@ -226,8 +226,8 @@ function HouseholdHistoryPage() {
         ) : history.length === 0 ? (
           <div className="empty-state">История пуста</div>
         ) : (
-          <div className="products-table-wrapper household-table-wrapper">
-            <table className="products-table household-table household-history-table">
+          <div className="products-table-wrapper household-history-table-wrap">
+            <table className="products-table household-history-table">
               <thead>
                 <tr>
                   <th className="text-center household-history-col-name">Наименование</th>
