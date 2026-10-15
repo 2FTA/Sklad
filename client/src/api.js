@@ -279,6 +279,9 @@ export const api = {
   getHouseholdHistory: (userId) =>
     request(`/household/history?userId=${encodeURIComponent(userId)}`),
 
+  searchHouseholdHistory: (q) =>
+    request(`/household/history/search?q=${encodeURIComponent(q)}`),
+
   saveSummary: (date, items) =>
     request('/summary', {
       method: 'POST',

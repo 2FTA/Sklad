@@ -111,6 +111,33 @@ router.post('/', async (req, res) => {
   }
 });
 
+router.get('/history/search', adminOnly, async (req, res) => {
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+
+  if (q.length < 2) {
+    return res.json([]);
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT u.id AS "userId",
+              u.login AS "shopName",
+              MAX(hh.shipment_date)::text AS "lastShipmentDate"
+       FROM household_history hh
+       JOIN users u ON u.id = hh.user_id
+       WHERE hh.product_name ILIKE $1
+         AND u.role = 'user'
+       GROUP BY u.id, u.login
+       ORDER BY u.login`,
+      [`%${q}%`]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка поиска' });
+  }
+});
+
 router.get('/history', adminOnly, async (req, res) => {
   const userId = parseInt(req.query.userId, 10);
 
