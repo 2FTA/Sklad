@@ -185,16 +185,21 @@ function AdminHouseholdPage() {
                     <table className="products-table household-table">
                       <thead>
                         <tr>
+                          <th className="household-col-name">Наименование</th>
+                          <th className="text-center household-col-qty">Количество</th>
+                          <th className="household-col-date">Дата запроса</th>
                           <th className="text-center household-check-col" aria-label="Выбор" />
-                          <th>Наименование</th>
-                          <th className="text-center">Количество</th>
-                          <th>Дата запроса</th>
-                          <th className="text-center">Действие</th>
+                          <th className="text-center household-col-action">Действие</th>
                         </tr>
                       </thead>
                       <tbody>
                         {group.requests.map((request) => (
                           <tr key={request.id}>
+                            <td className="household-col-name">{request.productName}</td>
+                            <td className="text-center household-col-qty">{request.quantity}</td>
+                            <td className="household-col-date">
+                              {formatRequestDate(request.requestDate)}
+                            </td>
                             <td className="text-center household-check-col">
                               <input
                                 type="checkbox"
@@ -205,10 +210,7 @@ function AdminHouseholdPage() {
                                 aria-label={`Выбрать ${request.productName}`}
                               />
                             </td>
-                            <td>{request.productName}</td>
-                            <td className="text-center">{request.quantity}</td>
-                            <td>{formatRequestDate(request.requestDate)}</td>
-                            <td className="text-center">
+                            <td className="text-center household-col-action">
                               <button
                                 type="button"
                                 className="btn-sm btn-delete"

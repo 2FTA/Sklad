@@ -51,6 +51,27 @@
   opacity: 0.45;
 }
 
+.household-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.household-col-name {
+  width: 35%;
+}
+
+.household-col-qty {
+  width: 100px;
+}
+
+.household-col-date {
+  width: 180px;
+}
+
+.household-col-action {
+  width: 120px;
+}
+
 .household-table-wrapper {
   overflow: auto;
 }

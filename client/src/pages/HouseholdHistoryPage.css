@@ -109,13 +109,13 @@
   background: #f8fafc;
 }
 
-.suggestion-shop {
+.suggestion-header {
   font-weight: 600;
   color: #1e293b;
   font-size: 0.95rem;
 }
 
-.suggestion-date {
+.suggestion-product {
   font-size: 0.85rem;
   color: #64748b;
 }

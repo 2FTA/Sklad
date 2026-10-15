@@ -200,10 +200,10 @@ function HouseholdHistoryPage() {
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => handleSuggestionClick(item)}
                   >
-                    <span className="suggestion-shop">{item.shopName}</span>
-                    <span className="suggestion-date">
-                      Дата отгрузки {formatDateOnly(item.lastShipmentDate)}
-                    </span>
+                    <div className="suggestion-header">
+                      {item.shopName} Дата отгрузки {formatDateOnly(item.lastShipmentDate)}
+                    </div>
+                    <div className="suggestion-product">{item.productName}</div>
                   </button>
                 ))}
               </div>

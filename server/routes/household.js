@@ -122,7 +122,8 @@ router.get('/history/search', adminOnly, async (req, res) => {
     const result = await pool.query(
       `SELECT u.id AS "userId",
               u.login AS "shopName",
-              MAX(hh.shipment_date)::text AS "lastShipmentDate"
+              MAX(hh.shipment_date)::text AS "lastShipmentDate",
+              MAX(hh.product_name) AS "productName"
        FROM household_history hh
        JOIN users u ON u.id = hh.user_id
        WHERE hh.product_name ILIKE $1
