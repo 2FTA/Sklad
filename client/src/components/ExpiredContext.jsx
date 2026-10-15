@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { api, getStoredUser, getToken } from '../api';
@@ -39,6 +40,8 @@ export function ExpiredProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [expiredCount, setExpiredCount] = useState(0);
   const [authVersion, setAuthVersion] = useState(0);
+  const checkInFlightRef = useRef(false);
+  const refreshInFlightRef = useRef(false);
 
   useEffect(() => {
     const onAuthChanged = () => setAuthVersion((value) => value + 1);
@@ -70,6 +73,12 @@ export function ExpiredProvider({ children }) {
         return;
       }
 
+      if (refreshInFlightRef.current) {
+        return;
+      }
+
+      refreshInFlightRef.current = true;
+
       if (!silent) {
         setLoading(true);
       }
@@ -82,6 +91,7 @@ export function ExpiredProvider({ children }) {
       } catch {
         clearExpiredState();
       } finally {
+        refreshInFlightRef.current = false;
         if (!silent) {
           setLoading(false);
         }
@@ -96,6 +106,12 @@ export function ExpiredProvider({ children }) {
       return;
     }
 
+    if (checkInFlightRef.current) {
+      return;
+    }
+
+    checkInFlightRef.current = true;
+
     try {
       const { hasExpired, count } = await api.checkExpiredLots();
       setExpiredCount(count ?? 0);
@@ -106,8 +122,10 @@ export function ExpiredProvider({ children }) {
         clearExpiredState();
         syncCheckedIds([]);
       }
-    } catch {
-      // Фоновая проверка не должна мешать работе интерфейса.
+    } catch (err) {
+      console.warn('checkExpired error:', err?.message || err);
+    } finally {
+      checkInFlightRef.current = false;
     }
   }, [clearExpiredState, refreshExpired, syncCheckedIds]);
 

@@ -7,6 +7,41 @@ export function getToken() {
   return localStorage.getItem('token');
 }
 
+const DEFAULT_FETCH_TIMEOUT_MS = 30000;
+
+function isAbortError(err) {
+  return err?.name === 'AbortError';
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  const { signal: externalSignal, ...restOptions } = options;
+
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort();
+    } else {
+      externalSignal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
+  }
+
+  try {
+    return await fetch(url, { ...restOptions, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function throwFetchError(err) {
+  if (isAbortError(err)) {
+    throw new Error('Запрос отменён по таймауту');
+  }
+  logError('Network Error');
+  throw new Error('Network Error');
+}
+
 async function request(url, options = {}) {
   const token = getToken();
   const headers = {
@@ -18,10 +53,9 @@ async function request(url, options = {}) {
   let res;
 
   try {
-    res = await fetch(`${API_BASE}${url}`, { ...options, headers });
-  } catch {
-    logError('Network Error');
-    throw new Error('Network Error');
+    res = await fetchWithTimeout(`${API_BASE}${url}`, { ...options, headers });
+  } catch (err) {
+    throwFetchError(err);
   }
 
   const data = await res.json().catch(() => ({}));
@@ -41,12 +75,11 @@ async function requestBlob(url) {
   let res;
 
   try {
-    res = await fetch(`${API_BASE}${url}`, {
+    res = await fetchWithTimeout(`${API_BASE}${url}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
-  } catch {
-    logError('Network Error');
-    throw new Error('Network Error');
+  } catch (err) {
+    throwFetchError(err);
   }
 
   if (!res.ok) {
@@ -65,7 +98,7 @@ async function requestBlobPost(url, body) {
   let res;
 
   try {
-    res = await fetch(`${API_BASE}${url}`, {
+    res = await fetchWithTimeout(`${API_BASE}${url}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -73,9 +106,8 @@ async function requestBlobPost(url, body) {
       },
       body: JSON.stringify(body),
     });
-  } catch {
-    logError('Network Error');
-    throw new Error('Network Error');
+  } catch (err) {
+    throwFetchError(err);
   }
 
   if (!res.ok) {
@@ -314,14 +346,13 @@ export const api = {
     let res;
 
     try {
-      res = await fetch(`${API_BASE}/movement-exports`, {
+      res = await fetchWithTimeout(`${API_BASE}/movement-exports`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
       });
-    } catch {
-      logError('Network Error');
-      throw new Error('Network Error');
+    } catch (err) {
+      throwFetchError(err);
     }
 
     const data = await res.json().catch(() => ({}));
