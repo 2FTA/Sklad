@@ -57,7 +57,7 @@
 }
 
 .household-col-name {
-  width: 40%;
+  width: 30%;
 }
 
 .household-col-qty {
@@ -65,15 +65,11 @@
 }
 
 .household-col-date {
-  width: 160px;
-}
-
-.household-table .text-left {
-  text-align: left;
+  width: 180px;
 }
 
 .household-col-action {
-  width: 120px;
+  width: 100px;
 }
 
 .household-table-wrapper {

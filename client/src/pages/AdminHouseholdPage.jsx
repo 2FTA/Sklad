@@ -186,9 +186,9 @@ function AdminHouseholdPage() {
                       <thead>
                         <tr>
                           <th className="text-center household-check-col" aria-label="Выбор" />
-                          <th className="household-col-name">Наименование</th>
-                          <th className="text-left household-col-qty">Количество</th>
-                          <th className="text-left household-col-date">Дата запроса</th>
+                          <th className="text-center household-col-name">Наименование</th>
+                          <th className="text-center household-col-qty">Количество</th>
+                          <th className="text-center household-col-date">Дата запроса</th>
                           <th className="text-center household-col-action">Действие</th>
                         </tr>
                       </thead>
@@ -205,9 +205,9 @@ function AdminHouseholdPage() {
                                 aria-label={`Выбрать ${request.productName}`}
                               />
                             </td>
-                            <td className="household-col-name">{request.productName}</td>
-                            <td className="text-left household-col-qty">{request.quantity}</td>
-                            <td className="text-left household-col-date">
+                            <td className="text-center household-col-name">{request.productName}</td>
+                            <td className="text-center household-col-qty">{request.quantity}</td>
+                            <td className="text-center household-col-date">
                               {formatRequestDate(request.requestDate)}
                             </td>
                             <td className="text-center household-col-action">

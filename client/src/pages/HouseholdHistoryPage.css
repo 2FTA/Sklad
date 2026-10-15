@@ -131,8 +131,8 @@
   width: 100%;
 }
 
-.household-history-table .text-left {
-  text-align: left;
+.household-history-table .text-center {
+  text-align: center;
 }
 
 .household-history-col-name {
@@ -140,15 +140,15 @@
 }
 
 .household-history-col-qty {
-  width: 15%;
+  width: 120px;
 }
 
 .household-history-col-request {
-  width: 22%;
+  width: 180px;
 }
 
 .household-history-col-shipment {
-  width: 23%;
+  width: 180px;
 }
 
 @media (max-width: 768px) {

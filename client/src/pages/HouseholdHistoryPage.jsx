@@ -230,21 +230,21 @@ function HouseholdHistoryPage() {
             <table className="products-table household-table household-history-table">
               <thead>
                 <tr>
-                  <th className="text-left household-history-col-name">Наименование</th>
-                  <th className="text-left household-history-col-qty">Количество</th>
-                  <th className="text-left household-history-col-request">Дата запроса</th>
-                  <th className="text-left household-history-col-shipment">Дата отгрузки</th>
+                  <th className="text-center household-history-col-name">Наименование</th>
+                  <th className="text-center household-history-col-qty">Количество</th>
+                  <th className="text-center household-history-col-request">Дата запроса</th>
+                  <th className="text-center household-history-col-shipment">Дата отгрузки</th>
                 </tr>
               </thead>
               <tbody>
                 {history.map((row) => (
                   <tr key={row.id}>
-                    <td className="text-left household-history-col-name">{row.productName}</td>
-                    <td className="text-left household-history-col-qty">{row.quantity}</td>
-                    <td className="text-left household-history-col-request">
+                    <td className="text-center household-history-col-name">{row.productName}</td>
+                    <td className="text-center household-history-col-qty">{row.quantity}</td>
+                    <td className="text-center household-history-col-request">
                       {formatDateTime(row.requestDate)}
                     </td>
-                    <td className="text-left household-history-col-shipment">
+                    <td className="text-center household-history-col-shipment">
                       {formatDateOnly(row.shipmentDate)}
                     </td>
                   </tr>
