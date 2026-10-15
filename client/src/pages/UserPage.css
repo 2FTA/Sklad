@@ -12,6 +12,36 @@
   max-width: 480px;
 }
 
+.user-page-content-motor {
+  max-width: none;
+}
+
+.motor-daily-report {
+  margin-top: 1.5rem;
+}
+
+.motor-daily-report-title {
+  font-size: 1.1rem;
+  color: #1e293b;
+  margin: 0 0 0.75rem;
+}
+
+.motor-report-scroll {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  padding: 0.5rem;
+}
+
+.motor-report-cell {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.motor-report-cell .stock-qty {
+  display: inline-block;
+}
+
 .user-category-tabs {
   margin-bottom: 1rem;
 }

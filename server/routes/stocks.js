@@ -368,6 +368,47 @@ router.get('/:userId', async (req, res) => {
   const endDate = req.query.endDate || defaults.endDate;
   const totalDate = req.query.totalDate || todayISO();
 
+  if (req.user.role === 'motor') {
+    if (req.user.id !== userId) {
+      return res.status(403).json({ error: 'Доступ запрещён' });
+    }
+
+    try {
+      const result = await pool.query(
+        `SELECT ss.product_id AS "productId",
+                gp.name AS "productName",
+                gp.weight,
+                ss.date::text AS date,
+                ss.warehouse_motornaya AS quantity
+         FROM summary_stocks ss
+         JOIN global_products gp ON gp.id = ss.product_id
+         WHERE ss.date >= $1::date
+           AND ss.date <= $2::date
+           AND gp.category = $3
+         ORDER BY gp.order_index ASC, ss.date DESC`,
+        [startDate, endDate, PRODUCT_CATEGORY_BEER]
+      );
+
+      const stocks = result.rows
+        .filter((row) => row.date !== null && row.quantity !== null)
+        .map((row) => ({
+          productId: row.productId,
+          productName: row.productName,
+          weight: row.weight,
+          date: row.date,
+          quantity: row.quantity,
+          shipments: 0,
+          movement: 0,
+          return: 0,
+        }));
+
+      return res.json({ stocks, storeTotal: 0 });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Ошибка сервера' });
+    }
+  }
+
   if (req.user.role !== 'admin' && req.user.id !== userId) {
     return res.status(403).json({ error: 'Доступ запрещён' });
   }
