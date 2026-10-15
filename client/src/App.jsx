@@ -8,6 +8,7 @@ import ReportsPage from './pages/ReportsPage';
 import MovementPage from './pages/MovementPage';
 import ExpiredPage from './pages/ExpiredPage';
 import AdminHouseholdPage from './pages/AdminHouseholdPage';
+import HouseholdHistoryPage from './pages/HouseholdHistoryPage';
 import ErrorsPage from './pages/ErrorsPage';
 import AdminRoute from './components/AdminRoute';
 import GlobalErrorHandlers from './components/GlobalErrorHandlers';
@@ -88,6 +89,14 @@ function App() {
         element={
           <AdminRoute>
             <AdminHouseholdPage />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/household-history"
+        element={
+          <AdminRoute>
+            <HouseholdHistoryPage />
           </AdminRoute>
         }
       />

@@ -276,6 +276,9 @@ export const api = {
 
   exportHousehold: (payload) => requestBlobPost('/household/export', payload),
 
+  getHouseholdHistory: (userId) =>
+    request(`/household/history?userId=${encodeURIComponent(userId)}`),
+
   saveSummary: (date, items) =>
     request('/summary', {
       method: 'POST',

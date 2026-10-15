@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { downloadBlob } from '../utils/download';
 import { toISODate } from '../utils/dates';
@@ -138,7 +139,14 @@ function AdminHouseholdPage() {
 
   return (
     <div className="page-layout household-page">
-      <AdminTopBar title="Хоз товары" />
+      <AdminTopBar
+        title="Хоз товары"
+        leftExtra={
+          <Link to="/admin/household-history" className="btn-export household-history-link">
+            История
+          </Link>
+        }
+      />
 
       <div className="content-area admin-content-area household-scroll-content">
         {!loading && hasRequests && (
@@ -167,7 +175,7 @@ function AdminHouseholdPage() {
                     <h2 className="household-group-title">{group.shopName}</h2>
                     <input
                       type="checkbox"
-                      className="household-shop-checkbox"
+                      className="household-checkbox household-shop-checkbox"
                       checked={selectedShopIds.includes(group.userId)}
                       onChange={() => handleShopChange(group.userId)}
                       aria-label={`Выбрать магазин ${group.shopName}`}
@@ -190,6 +198,7 @@ function AdminHouseholdPage() {
                             <td className="text-center household-check-col">
                               <input
                                 type="checkbox"
+                                className="household-checkbox"
                                 checked={selectedItemIds.includes(request.id)}
                                 disabled={!selectedShopIds.includes(group.userId)}
                                 onChange={() => handleItemChange(request.id)}

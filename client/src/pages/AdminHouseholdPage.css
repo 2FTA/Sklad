@@ -33,7 +33,16 @@
 }
 
 .household-check-col {
-  width: 2.5rem;
+  width: 3.5rem;
+  vertical-align: middle;
+}
+
+.household-checkbox {
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: #2563eb;
 }
 
 .household-shop-checkbox:disabled,

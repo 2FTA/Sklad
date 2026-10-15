@@ -117,6 +117,18 @@ async function ensureHouseholdRequestsSchema(pool) {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS household_history (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      product_id INTEGER NOT NULL REFERENCES global_products(id) ON DELETE CASCADE,
+      product_name VARCHAR(255) NOT NULL,
+      quantity INTEGER NOT NULL,
+      request_date TIMESTAMP NOT NULL,
+      shipment_date DATE NOT NULL
+    )
+  `);
+
+  await pool.query(`
     INSERT INTO products (user_id, global_product_id, name, quantity)
     SELECT u.id, gp.id, gp.name, 0
     FROM users u

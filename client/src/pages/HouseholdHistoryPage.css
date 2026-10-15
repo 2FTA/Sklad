@@ -1,0 +1,28 @@
+.household-history-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  flex-shrink: 0;
+}
+
+.household-history-label {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.household-history-select {
+  min-width: 220px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  background: #fff;
+}
+
+.household-history-link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}

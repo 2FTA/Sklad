@@ -111,6 +111,32 @@ router.post('/', async (req, res) => {
   }
 });
 
+router.get('/history', adminOnly, async (req, res) => {
+  const userId = parseInt(req.query.userId, 10);
+
+  if (!req.query.userId || isNaN(userId)) {
+    return res.status(400).json({ error: 'Не указан магазин' });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT id,
+              product_name AS "productName",
+              quantity,
+              request_date AS "requestDate",
+              shipment_date AS "shipmentDate"
+       FROM household_history
+       WHERE user_id = $1
+       ORDER BY shipment_date DESC, request_date DESC`,
+      [userId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка загрузки истории' });
+  }
+});
+
 router.post('/export', adminOnly, async (req, res) => {
   const { shops } = req.body;
 
@@ -185,20 +211,52 @@ router.delete('/:id', adminOnly, async (req, res) => {
     return res.status(400).json({ error: 'Некорректный идентификатор' });
   }
 
+  const client = await pool.connect();
+
   try {
-    const result = await pool.query(
-      'DELETE FROM household_requests WHERE id = $1 RETURNING id',
+    await client.query('BEGIN');
+
+    const row = await client.query(
+      `SELECT hr.user_id,
+              hr.product_id,
+              gp.name AS product_name,
+              hr.quantity,
+              hr.request_date
+       FROM household_requests hr
+       JOIN global_products gp ON gp.id = hr.product_id
+       WHERE hr.id = $1`,
       [id]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Запрос не найден' });
+    if (row.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Запись не найдена' });
     }
 
+    const item = row.rows[0];
+
+    await client.query(
+      `INSERT INTO household_history (user_id, product_id, product_name, quantity, request_date, shipment_date)
+       VALUES ($1, $2, $3, $4, $5, CURRENT_DATE)`,
+      [
+        item.user_id,
+        item.product_id,
+        item.product_name,
+        item.quantity,
+        item.request_date,
+      ]
+    );
+
+    await client.query('DELETE FROM household_requests WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
     res.json({ success: true });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error(err);
     res.status(500).json({ error: 'Ошибка удаления' });
+  } finally {
+    client.release();
   }
 });
 
