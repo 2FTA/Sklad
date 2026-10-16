@@ -274,6 +274,12 @@ export const api = {
       `/summary/motor-report?userId=${encodeURIComponent(userId)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
     ),
 
+  updateMotorToday: (userId, date, items) =>
+    request('/summary/motor-today', {
+      method: 'PUT',
+      body: JSON.stringify({ userId, date, items }),
+    }),
+
   getHouseholdRequests: () => request('/household'),
 
   createHouseholdRequests: (items) =>

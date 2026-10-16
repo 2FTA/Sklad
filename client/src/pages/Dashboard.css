@@ -742,6 +742,12 @@
   margin-left: auto;
 }
 
+.motor-report-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
 .stock-shipment-input {
   width: 56px;
   padding: 0.3rem 0.4rem;

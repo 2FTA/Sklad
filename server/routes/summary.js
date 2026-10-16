@@ -39,6 +39,76 @@ router.post('/export', async (req, res) => {
   }
 });
 
+function todayISO() {
+  return new Date().toISOString().split('T')[0];
+}
+
+router.put('/motor-today', async (req, res) => {
+  const userId = parseInt(req.body.userId, 10);
+  const { items } = req.body;
+  const date = req.body.date || todayISO();
+
+  if (!userId || isNaN(userId) || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Недостаточно данных' });
+  }
+
+  try {
+    const user = await pool.query(
+      "SELECT id FROM users WHERE id = $1 AND role = 'motor'",
+      [userId]
+    );
+
+    if (user.rows.length === 0) {
+      return res.status(400).json({ error: 'Пользователь motor не найден' });
+    }
+
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      for (const item of items) {
+        const productId = parseInt(item.productId, 10);
+        const quantity = parseInt(item.quantity, 10);
+
+        if (isNaN(productId) || isNaN(quantity) || quantity < 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Некорректные данные остатков' });
+        }
+
+        const product = await client.query(
+          'SELECT id FROM global_products WHERE id = $1 AND category = $2',
+          [productId, PRODUCT_CATEGORY_BEER]
+        );
+
+        if (product.rows.length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: `Товар ${productId} не найден` });
+        }
+
+        await client.query(
+          `INSERT INTO summary_stocks (product_id, date, warehouse_motornaya)
+           VALUES ($1, $2::date, $3)
+           ON CONFLICT (product_id, date)
+           DO UPDATE SET warehouse_motornaya = EXCLUDED.warehouse_motornaya`,
+          [productId, date, quantity]
+        );
+      }
+
+      await client.query('COMMIT');
+      res.json({ success: true });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка сохранения' });
+  }
+});
+
 router.get('/motor-report', async (req, res) => {
   const userId = parseInt(req.query.userId, 10);
   const { startDate, endDate } = req.query;

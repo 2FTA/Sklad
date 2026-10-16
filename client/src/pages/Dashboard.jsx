@@ -48,6 +48,10 @@ function Dashboard() {
   const [isEditingRemainder, setIsEditingRemainder] = useState(false);
   const [editedRemainders, setEditedRemainders] = useState({});
   const [savingRemainders, setSavingRemainders] = useState(false);
+  const [isEditingMotor, setIsEditingMotor] = useState(false);
+  const [editedMotorValues, setEditedMotorValues] = useState({});
+  const [savingMotor, setSavingMotor] = useState(false);
+  const [motorReportRefresh, setMotorReportRefresh] = useState(0);
   const [exportingSummary, setExportingSummary] = useState(false);
 
   const isMotorView = motorUser != null && activeView === motorUser.id;
@@ -447,6 +451,68 @@ function Dashboard() {
 
     setEditedRemainders({});
     setIsEditingRemainder(true);
+  };
+
+  const handleMotorEditStart = () => {
+    setEditedMotorValues({});
+    setIsEditingMotor(true);
+  };
+
+  const handleEditedMotorChange = (productId, value) => {
+    setEditedMotorValues((prev) => ({
+      ...prev,
+      [productId]: value,
+    }));
+  };
+
+  const handleSaveMotor = async (todayValuesByProduct) => {
+    if (!motorUser) return;
+
+    const items = [];
+
+    for (const product of globalProducts) {
+      const original = todayValuesByProduct?.[product.id];
+      const edited = editedMotorValues[product.id];
+      let quantity;
+
+      if (edited === undefined || edited === '') {
+        if (original === null || original === undefined) {
+          continue;
+        }
+        quantity = parseInt(original, 10);
+      } else {
+        quantity = parseInt(edited, 10);
+        if (isNaN(quantity) || quantity < 0) {
+          showToast('Некорректное значение остатка', 'error');
+          return;
+        }
+      }
+
+      if (isNaN(quantity)) {
+        continue;
+      }
+
+      items.push({ productId: product.id, quantity });
+    }
+
+    if (items.length === 0) {
+      setIsEditingMotor(false);
+      setEditedMotorValues({});
+      return;
+    }
+
+    setSavingMotor(true);
+    try {
+      await api.updateMotorToday(motorUser.id, todayStr, items);
+      setIsEditingMotor(false);
+      setEditedMotorValues({});
+      setMotorReportRefresh((key) => key + 1);
+      flash('Остатки сохранены');
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setSavingMotor(false);
+    }
   };
 
   const handleSaveRemainders = async () => {
@@ -900,6 +966,14 @@ function Dashboard() {
                 userId={motorUser.id}
                 products={globalProducts}
                 dates={dates}
+                todayStr={todayStr}
+                isEditingMotor={isEditingMotor}
+                editedMotorValues={editedMotorValues}
+                onEditedMotorChange={handleEditedMotorChange}
+                onMotorEditStart={handleMotorEditStart}
+                onMotorSaveRequest={handleSaveMotor}
+                savingMotor={savingMotor}
+                refreshKey={motorReportRefresh}
               />
             )
           ) : (

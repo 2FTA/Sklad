@@ -80,6 +80,10 @@
   text-align: center;
 }
 
+.household-table .text-left {
+  text-align: left;
+}
+
 .household-table thead th {
   position: sticky;
   top: 0;
