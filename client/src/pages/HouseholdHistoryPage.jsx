@@ -144,7 +144,7 @@ function HouseholdHistoryPage() {
   };
 
   return (
-    <div className="page-layout household-page">
+    <div className="page-layout household-page household-history-page">
       <AdminTopBar title="История хоз товаров" />
 
       <div className="content-area admin-content-area household-scroll-content">

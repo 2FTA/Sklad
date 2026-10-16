@@ -126,23 +126,40 @@
   align-items: center;
 }
 
-.household-history-table-wrap {
-  display: flex;
-  justify-content: flex-start;
-  text-align: left;
+.page-layout.household-history-page > .content-area.household-scroll-content {
+  overflow-y: hidden;
+}
+
+.page-layout.household-history-page
+  > .content-area.household-scroll-content
+  > .household-history-table-wrap {
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: calc(100vh - 240px);
+  display: block;
   overflow-x: auto;
+  overflow-y: auto;
+  align-self: stretch;
+}
+
+.household-history-table-wrap {
+  text-align: left;
 }
 
 .household-history-table-wrap .household-history-table {
   width: auto;
   min-width: 0;
   table-layout: auto;
+  height: auto;
+  border-collapse: collapse;
 }
 
 .household-history-table th,
 .household-history-table td {
   padding: 4px 12px;
   line-height: 1.2;
+  vertical-align: middle;
+  height: auto;
 }
 
 .household-history-table .text-center {
