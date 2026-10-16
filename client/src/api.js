@@ -148,6 +148,12 @@ export const api = {
       body: JSON.stringify({ password }),
     }),
 
+  updateUserOrder: (userId, orderIndex) =>
+    request(`/users/${userId}/order`, {
+      method: 'PUT',
+      body: JSON.stringify({ orderIndex }),
+    }),
+
   updateUserCapacity: (id, capacity) =>
     request(`/users/${id}/capacity`, {
       method: 'PUT',

@@ -184,6 +184,10 @@
   justify-content: center;
 }
 
+.capacity-input.order-input {
+  width: 4.5rem;
+}
+
 .capacity-input {
   width: 90px;
   padding: 0.4rem 0.5rem;

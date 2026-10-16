@@ -13,7 +13,7 @@ router.use(authMiddleware);
 router.get('/', adminOnly, async (req, res) => {
   try {
     const usersResult = await pool.query(
-      'SELECT id, login FROM users WHERE role = $1 ORDER BY id',
+      'SELECT id, login FROM users WHERE role = $1 ORDER BY order_index ASC, id ASC',
       ['user']
     );
 
@@ -129,7 +129,7 @@ router.get('/history/search', adminOnly, async (req, res) => {
        WHERE hh.product_name ILIKE $1
          AND u.role = 'user'
        GROUP BY u.id, u.login
-       ORDER BY u.login`,
+       ORDER BY u.order_index ASC, u.login ASC`,
       [`%${q}%`]
     );
     res.json(result.rows);

@@ -131,7 +131,7 @@ router.get('/all', adminOnly, async (req, res) => {
       SELECT p.id, p.name, p.quantity, p.user_id, u.login AS user_login
       FROM products p
       JOIN users u ON u.id = p.user_id
-      ORDER BY u.login, p.name
+      ORDER BY u.order_index ASC, u.login ASC, p.name ASC
     `);
     res.json(result.rows);
   } catch (err) {

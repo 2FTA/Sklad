@@ -12,6 +12,9 @@ function sortUsers(users) {
     const orderA = roleOrder[a.role] ?? 3;
     const orderB = roleOrder[b.role] ?? 3;
     if (orderA !== orderB) return orderA - orderB;
+    if (a.role === 'user' && b.role === 'user') {
+      return (a.orderIndex ?? 0) - (b.orderIndex ?? 0) || a.id - b.id;
+    }
     return a.id - b.id;
   });
 }
@@ -25,6 +28,7 @@ function UsersManagement() {
   const [newPassword, setNewPassword] = useState('');
   const [newUser, setNewUser] = useState({ login: '', password: '', role: 'user' });
   const [capacityInputs, setCapacityInputs] = useState({});
+  const [orderInputs, setOrderInputs] = useState({});
 
   const flash = (msg) => {
     showToast(msg, 'success');
@@ -36,13 +40,16 @@ function UsersManagement() {
       const data = await api.getUsers();
       const sortedUsers = sortUsers(data);
       setUsers(sortedUsers);
-      const inputs = {};
+      const capacityInit = {};
+      const orderInit = {};
       sortedUsers.forEach((u) => {
         if (u.role === 'user') {
-          inputs[u.id] = u.capacity ?? 1000;
+          capacityInit[u.id] = u.capacity ?? 1000;
+          orderInit[u.id] = u.orderIndex ?? 0;
         }
       });
-      setCapacityInputs(inputs);
+      setCapacityInputs(capacityInit);
+      setOrderInputs(orderInit);
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
@@ -113,6 +120,25 @@ function UsersManagement() {
     }
   };
 
+  const handleOrderSave = async (userId) => {
+    const value = orderInputs[userId];
+    if (value === undefined || value === '') return;
+
+    const orderIndex = parseInt(value, 10);
+    if (isNaN(orderIndex)) {
+      showToast('Порядок должен быть числом', 'error');
+      return;
+    }
+
+    try {
+      await api.updateUserOrder(userId, orderIndex);
+      flash('Порядок обновлён');
+      await loadUsers();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
   const handleCapacitySave = async (userId) => {
     const value = capacityInputs[userId];
     if (value === undefined || value === '') return;
@@ -147,6 +173,7 @@ function UsersManagement() {
                   <th>Логин</th>
                   <th>Роль</th>
                   <th>Вместимость</th>
+                  <th className="text-center">Порядок</th>
                   <th>Действия</th>
                 </tr>
               </thead>
@@ -166,6 +193,21 @@ function UsersManagement() {
                             setCapacityInputs({ ...capacityInputs, [user.id]: e.target.value })
                           }
                           onBlur={() => handleCapacitySave(user.id)}
+                        />
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className="text-center">
+                      {user.role === 'user' ? (
+                        <input
+                          type="number"
+                          className="capacity-input order-input"
+                          value={orderInputs[user.id] ?? user.orderIndex ?? 0}
+                          onChange={(e) =>
+                            setOrderInputs({ ...orderInputs, [user.id]: e.target.value })
+                          }
+                          onBlur={() => handleOrderSave(user.id)}
                         />
                       ) : (
                         '—'

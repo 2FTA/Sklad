@@ -17,6 +17,10 @@ async function ensureUsersSchema(pool) {
   `);
 
   await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS order_index INTEGER NOT NULL DEFAULT 0
+  `);
+
+  await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS users_motor_role_unique ON users (role) WHERE role = 'motor'
   `);
 }
@@ -246,7 +250,7 @@ async function ensureInventoryLotsSchema(pool) {
       WHERE il.quantity > 0
         AND gp.category = 'beer'
         AND il.expiration_date - gp.warning_period <= CURRENT_DATE
-      ORDER BY il.received_date, u.login, gp.name;
+      ORDER BY il.received_date, u.order_index ASC, u.login ASC, gp.name;
     END;
     $$
   `);

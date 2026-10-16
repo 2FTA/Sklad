@@ -33,7 +33,7 @@ router.get('/', async (req, res) => {
               to_char(r.month, 'YYYY-MM') AS month, r.created_at AS "createdAt"
        FROM reports r
        JOIN users u ON u.id = r.user_id
-       ORDER BY r.month DESC, u.login ASC`
+       ORDER BY r.month DESC, u.order_index ASC, u.login ASC`
     );
 
     res.json(result.rows);

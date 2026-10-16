@@ -256,7 +256,7 @@ router.get('/today', adminOnly, async (req, res) => {
        JOIN users u ON u.id = p.user_id AND u.role = 'user'
        LEFT JOIN daily_stocks ds ON ds.product_id = p.id AND ds.date = $1::date
        WHERE gp.category = '${PRODUCT_CATEGORY_BEER}'
-       ORDER BY gp.order_index ASC, u.login ASC`,
+       ORDER BY gp.order_index ASC, u.order_index ASC, u.login ASC`,
       [date]
     );
 

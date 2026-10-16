@@ -10,7 +10,12 @@ router.use(authMiddleware, adminOnly);
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, login, role, capacity FROM users ORDER BY login'
+      `SELECT id, login, role, capacity, order_index AS "orderIndex"
+       FROM users
+       ORDER BY
+         CASE role WHEN 'admin' THEN 1 WHEN 'motor' THEN 2 ELSE 3 END,
+         order_index ASC,
+         id ASC`
     );
     res.json(result.rows);
   } catch (err) {
@@ -42,6 +47,35 @@ router.get('/:id/password', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+router.put('/:id/order', async (req, res) => {
+  const userId = parseInt(req.params.id, 10);
+  const { orderIndex } = req.body;
+
+  if (orderIndex == null || isNaN(parseInt(orderIndex, 10))) {
+    return res.status(400).json({ error: 'Некорректный порядок' });
+  }
+
+  const orderValue = parseInt(orderIndex, 10);
+
+  try {
+    const user = await pool.query('SELECT role FROM users WHERE id = $1', [userId]);
+
+    if (user.rows.length === 0) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    if (user.rows[0].role !== 'user') {
+      return res.status(400).json({ error: 'Порядок меняется только для магазинов' });
+    }
+
+    await pool.query('UPDATE users SET order_index = $1 WHERE id = $2', [orderValue, userId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка обновления порядка' });
   }
 });
 
@@ -141,10 +175,27 @@ router.post('/', async (req, res) => {
     }
 
     const hash = await bcrypt.hash(password, 10);
+
+    let orderIndex = 0;
+    if (userRole === 'user') {
+      const nextOrder = await pool.query(
+        `SELECT COALESCE(MAX(order_index), 0) + 1 AS next_order FROM users WHERE role = 'user'`
+      );
+      orderIndex = nextOrder.rows[0].next_order;
+    }
+
     const result = await pool.query(
-      `INSERT INTO users (login, password_hash, password_plain, role, capacity)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id, login, role, capacity`,
-      [login.trim(), hash, password, userRole, userRole === 'user' ? 1000 : null]
+      `INSERT INTO users (login, password_hash, password_plain, role, capacity, order_index)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, login, role, capacity, order_index AS "orderIndex"`,
+      [
+        login.trim(),
+        hash,
+        password,
+        userRole,
+        userRole === 'user' ? 1000 : null,
+        userRole === 'user' ? orderIndex : 0,
+      ]
     );
 
     const newUserId = result.rows[0].id;
