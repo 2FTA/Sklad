@@ -243,6 +243,20 @@ function Dashboard() {
     return isNaN(num) ? null : num;
   };
 
+  const formatSummaryCell = (value) => {
+    if (value === null || value === undefined || value === 0) {
+      return '';
+    }
+    return value;
+  };
+
+  const summaryInputValue = (value) => {
+    if (value === null || value === undefined || value === 0 || value === '0') {
+      return '';
+    }
+    return value;
+  };
+
   const handleSummarySave = async (productId, fieldValues = {}) => {
     try {
       await api.saveSummary(todayStr, [
@@ -772,15 +786,15 @@ function Dashboard() {
                     <td className="product-name-col">{product.name}</td>
                     {shopUsers.map((user) => (
                       <td key={user.id} className="summary-num">
-                        {getSummaryShipment(user.id, product.id)}
+                        {formatSummaryCell(getSummaryShipment(user.id, product.id))}
                       </td>
                     ))}
-                    <td className="summary-num summary-total">{total}</td>
+                    <td className="summary-num summary-total">{formatSummaryCell(total)}</td>
                     <td>
                       <input
                         type="number"
                         className="summary-input"
-                        value={warehouseInputs[product.id] ?? ''}
+                        value={summaryInputValue(warehouseInputs[product.id])}
                         onChange={(e) =>
                           setWarehouseInputs((prev) => ({
                             ...prev,
@@ -793,13 +807,13 @@ function Dashboard() {
                       />
                     </td>
                     <td className="summary-num">
-                      {afterShip !== null ? afterShip : '—'}
+                      {formatSummaryCell(afterShip)}
                     </td>
                     <td>
                       <input
                         type="number"
                         className="summary-input"
-                        value={motorInputs[product.id] ?? ''}
+                        value={summaryInputValue(motorInputs[product.id])}
                         onChange={(e) =>
                           setMotorInputs((prev) => ({
                             ...prev,
@@ -812,7 +826,7 @@ function Dashboard() {
                       />
                     </td>
                     <td className="summary-num summary-overall">
-                      {overall !== null ? overall : '—'}
+                      {formatSummaryCell(overall)}
                     </td>
                   </tr>
                 );

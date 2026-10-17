@@ -26,6 +26,13 @@ function todayISO() {
   return formatDate(d);
 }
 
+function tomorrowISO() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 1);
+  return formatDate(d);
+}
+
 function defaultDateRange() {
   const end = new Date();
   end.setHours(0, 0, 0, 0);
@@ -50,6 +57,7 @@ router.post('/', async (req, res) => {
       return res.status(403).json({ error: 'Доступ запрещён' });
     }
 
+    const saveDate = tomorrowISO();
     const client = await pool.connect();
     const saved = [];
 
@@ -84,7 +92,7 @@ router.post('/', async (req, res) => {
            ON CONFLICT (product_id, date)
            DO UPDATE SET warehouse_motornaya = EXCLUDED.warehouse_motornaya
            RETURNING product_id AS "productId", date::text AS date, warehouse_motornaya AS quantity`,
-          [productId, date, quantity]
+          [productId, saveDate, quantity]
         );
 
         saved.push(result.rows[0]);
@@ -101,7 +109,7 @@ router.post('/', async (req, res) => {
       client.release();
     }
 
-    return res.json({ success: true, date, saved });
+    return res.json({ success: true, date: saveDate, saved });
   }
 
   if (req.user.role !== 'admin' && req.user.id !== targetUserId) {
