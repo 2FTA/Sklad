@@ -141,6 +141,11 @@ function UserPage() {
           <div className="empty-state">Список товаров пуст</div>
         ) : (
           <form className="user-stock-form" onSubmit={handleSave}>
+            {!isBeer && !isMotor && (
+              <button type="submit" className="btn-primary btn-save" disabled={saving}>
+                {saving ? 'Сохранение...' : 'Отправить запрос'}
+              </button>
+            )}
             <ul className="user-product-list">
               {products.map((product) => (
                 <li key={product.id} className="user-product-item">
@@ -157,9 +162,11 @@ function UserPage() {
                 </li>
               ))}
             </ul>
-            <button type="submit" className="btn-primary btn-save" disabled={saving}>
-              {saving ? 'Сохранение...' : isBeer || isMotor ? 'Сохранить' : 'Отправить запрос'}
-            </button>
+            {(isBeer || isMotor) && (
+              <button type="submit" className="btn-primary btn-save" disabled={saving}>
+                {saving ? 'Сохранение...' : 'Сохранить'}
+              </button>
+            )}
           </form>
         )}
       </div>
