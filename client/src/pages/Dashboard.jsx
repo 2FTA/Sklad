@@ -257,6 +257,14 @@ function Dashboard() {
     return value;
   };
 
+  const summaryNumeric = (value) => {
+    if (value === null || value === undefined || value === '') {
+      return 0;
+    }
+    const num = typeof value === 'number' ? value : parseInt(value, 10);
+    return Number.isNaN(num) ? 0 : num;
+  };
+
   const handleSummarySave = async (productId, fieldValues = {}) => {
     try {
       await api.saveSummary(todayStr, [
@@ -759,6 +767,31 @@ function Dashboard() {
       return <div className="empty-state">Нет магазинов для отображения</div>;
     }
 
+    const shopColumnSums = shopUsers.map((user) =>
+      globalProducts.reduce(
+        (sum, product) => sum + getSummaryShipment(user.id, product.id),
+        0
+      )
+    );
+
+    let sumTotal = 0;
+    let sumWarehouse = 0;
+    let sumAfterShip = 0;
+    let sumMotor = 0;
+    let sumOverall = 0;
+
+    globalProducts.forEach((product) => {
+      const { total, afterShip, overall } = getRowCalcs(product.id);
+      sumTotal += total;
+      sumWarehouse += summaryNumeric(parseInput(warehouseInputs[product.id]));
+      sumAfterShip += summaryNumeric(afterShip);
+      sumMotor += summaryNumeric(parseInput(motorInputs[product.id]));
+      sumOverall += summaryNumeric(overall);
+    });
+
+    const cityShopsSum = shopColumnSums.slice(0, 8).reduce((acc, value) => acc + value, 0);
+    const villageShopsSum = shopColumnSums.slice(8).reduce((acc, value) => acc + value, 0);
+
     return (
       <div className="table-panel summary-table-panel">
         <div className="stock-scroll-container summary-scroll-container">
@@ -831,6 +864,58 @@ function Dashboard() {
                   </tr>
                 );
               })}
+              <tr>
+                <td className="product-name-col">Сумма</td>
+                {shopUsers.map((user, shopIndex) => (
+                  <td key={user.id} className="summary-num">
+                    {formatSummaryCell(shopColumnSums[shopIndex])}
+                  </td>
+                ))}
+                <td className="summary-num summary-total">{formatSummaryCell(sumTotal)}</td>
+                <td className="summary-num">{formatSummaryCell(sumWarehouse)}</td>
+                <td className="summary-num">{formatSummaryCell(sumAfterShip)}</td>
+                <td className="summary-num">{formatSummaryCell(sumMotor)}</td>
+                <td className="summary-num summary-overall">{formatSummaryCell(sumOverall)}</td>
+              </tr>
+              <tr>
+                <td className="product-name-col" />
+                {shopUsers.map((user, shopIndex) => {
+                  if (shopIndex === 3) {
+                    return (
+                      <td key={user.id} className="summary-num">
+                        Город
+                      </td>
+                    );
+                  }
+                  if (shopIndex === 4) {
+                    return (
+                      <td key={user.id} className="summary-num">
+                        {formatSummaryCell(cityShopsSum)}
+                      </td>
+                    );
+                  }
+                  if (shopIndex === 6) {
+                    return (
+                      <td key={user.id} className="summary-num">
+                        Село
+                      </td>
+                    );
+                  }
+                  if (shopIndex === 7) {
+                    return (
+                      <td key={user.id} className="summary-num">
+                        {formatSummaryCell(villageShopsSum)}
+                      </td>
+                    );
+                  }
+                  return <td key={user.id} className="summary-num" />;
+                })}
+                <td className="summary-num" />
+                <td className="summary-num" />
+                <td className="summary-num" />
+                <td className="summary-num" />
+                <td className="summary-num" />
+              </tr>
             </tbody>
           </table>
         </div>
