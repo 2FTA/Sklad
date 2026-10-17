@@ -298,6 +298,61 @@ function Dashboard() {
     return { total, warehouse, motor, afterShip, overall };
   };
 
+  const getSummaryTableAggregates = useCallback(() => {
+    const shopColumnSums = shopUsers.map((user) =>
+      globalProducts.reduce(
+        (sum, product) => sum + getSummaryShipment(user.id, product.id),
+        0
+      )
+    );
+
+    let sumTotal = 0;
+    let sumWarehouse = 0;
+    let sumAfterShip = 0;
+    let sumMotor = 0;
+    let sumOverall = 0;
+
+    globalProducts.forEach((product) => {
+      const { total, afterShip, overall } = getRowCalcs(product.id);
+      sumTotal += total;
+      sumWarehouse += summaryNumeric(parseInput(warehouseInputs[product.id]));
+      sumAfterShip += summaryNumeric(afterShip);
+      sumMotor += summaryNumeric(parseInput(motorInputs[product.id]));
+      sumOverall += summaryNumeric(overall);
+    });
+
+    const cityShopsSum = shopColumnSums.slice(0, 8).reduce((acc, value) => acc + value, 0);
+    const villageShopsSum = shopColumnSums.slice(8).reduce((acc, value) => acc + value, 0);
+
+    return {
+      shopColumnSums,
+      sumTotal,
+      sumWarehouse,
+      sumAfterShip,
+      sumMotor,
+      sumOverall,
+      cityShopsSum,
+      villageShopsSum,
+    };
+  }, [globalProducts, shopUsers, warehouseInputs, motorInputs, shipmentMap]);
+
+  const buildCityVillageExportShops = (cityShopsSum, villageShopsSum) =>
+    shopUsers.map((_, shopIndex) => {
+      if (shopIndex === 3) {
+        return 'Город';
+      }
+      if (shopIndex === 4) {
+        return cityShopsSum;
+      }
+      if (shopIndex === 6) {
+        return 'Село';
+      }
+      if (shopIndex === 7) {
+        return villageShopsSum;
+      }
+      return '';
+    });
+
   const handleExportSummary = async () => {
     setExportingSummary(true);
 
@@ -316,6 +371,38 @@ function Dashboard() {
           totalRemain: overall,
         };
       });
+
+      const {
+        shopColumnSums,
+        sumTotal,
+        sumWarehouse,
+        sumAfterShip,
+        sumMotor,
+        sumOverall,
+        cityShopsSum,
+        villageShopsSum,
+      } = getSummaryTableAggregates();
+
+      data.push(
+        {
+          productName: 'Сумма',
+          shops: shopColumnSums,
+          total: sumTotal,
+          warehouse: sumWarehouse,
+          warehouseAfterShipment: sumAfterShip,
+          warehouseMotornaya: sumMotor,
+          totalRemain: sumOverall,
+        },
+        {
+          productName: '',
+          shops: buildCityVillageExportShops(cityShopsSum, villageShopsSum),
+          total: '',
+          warehouse: '',
+          warehouseAfterShipment: '',
+          warehouseMotornaya: '',
+          totalRemain: '',
+        }
+      );
 
       const blob = await api.exportSummary({
         date: todayStr,
@@ -767,30 +854,16 @@ function Dashboard() {
       return <div className="empty-state">Нет магазинов для отображения</div>;
     }
 
-    const shopColumnSums = shopUsers.map((user) =>
-      globalProducts.reduce(
-        (sum, product) => sum + getSummaryShipment(user.id, product.id),
-        0
-      )
-    );
-
-    let sumTotal = 0;
-    let sumWarehouse = 0;
-    let sumAfterShip = 0;
-    let sumMotor = 0;
-    let sumOverall = 0;
-
-    globalProducts.forEach((product) => {
-      const { total, afterShip, overall } = getRowCalcs(product.id);
-      sumTotal += total;
-      sumWarehouse += summaryNumeric(parseInput(warehouseInputs[product.id]));
-      sumAfterShip += summaryNumeric(afterShip);
-      sumMotor += summaryNumeric(parseInput(motorInputs[product.id]));
-      sumOverall += summaryNumeric(overall);
-    });
-
-    const cityShopsSum = shopColumnSums.slice(0, 8).reduce((acc, value) => acc + value, 0);
-    const villageShopsSum = shopColumnSums.slice(8).reduce((acc, value) => acc + value, 0);
+    const {
+      shopColumnSums,
+      sumTotal,
+      sumWarehouse,
+      sumAfterShip,
+      sumMotor,
+      sumOverall,
+      cityShopsSum,
+      villageShopsSum,
+    } = getSummaryTableAggregates();
 
     return (
       <div className="table-panel summary-table-panel">

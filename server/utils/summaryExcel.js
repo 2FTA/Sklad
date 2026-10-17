@@ -17,7 +17,7 @@ const HEADER_LABELS = [
 ];
 
 function normalizeCellValue(value) {
-  if (value === null || value === undefined || value === '') {
+  if (value === null || value === undefined || value === '' || value === 0) {
     return '';
   }
   return value;
