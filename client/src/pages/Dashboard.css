@@ -571,6 +571,12 @@
   background-color: #fff;
 }
 
+.dashboard .products-table.stock-grid-table th,
+.dashboard .products-table.stock-grid-table td {
+  padding: 11px 12px;
+  line-height: 1.2;
+}
+
 .stock-grid-table thead th {
   text-align: center;
   position: sticky;
@@ -671,6 +677,15 @@
   vertical-align: middle;
 }
 
+.dashboard .stock-grid-table .stock-cell {
+  padding: 6px 8px !important;
+}
+
+.dashboard .stock-cell-row,
+.dashboard .date-legend-item {
+  height: 1.35rem;
+}
+
 .stock-cell.empty-cell {
   text-align: center;
   color: #94a3b8;
@@ -715,6 +730,13 @@
   font-size: 1rem;
   font-weight: 600;
   color: #1e293b;
+}
+
+.dashboard .stock-qty-input,
+.dashboard .stock-shipment-input,
+.dashboard .stock-shipment-readonly {
+  padding: 2px 4px;
+  font-size: 0.9rem;
 }
 
 .stock-qty-input {
