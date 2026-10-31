@@ -299,8 +299,10 @@ function Dashboard() {
   };
 
   const getSummaryTableAggregates = useCallback(() => {
+    const sumProducts = globalProducts.filter((product) => product.weight === '1л');
+
     const shopColumnSums = shopUsers.map((user) =>
-      globalProducts.reduce(
+      sumProducts.reduce(
         (sum, product) => sum + getSummaryShipment(user.id, product.id),
         0
       )
@@ -312,7 +314,7 @@ function Dashboard() {
     let sumMotor = 0;
     let sumOverall = 0;
 
-    globalProducts.forEach((product) => {
+    sumProducts.forEach((product) => {
       const { total, afterShip, overall } = getRowCalcs(product.id);
       sumTotal += total;
       sumWarehouse += summaryNumeric(parseInput(warehouseInputs[product.id]));
