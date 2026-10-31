@@ -333,6 +333,23 @@ function Dashboard() {
     const cityShopsSum = sumByLocation('Город');
     const villageShopsSum = sumByLocation('Село');
 
+    const smallProducts = globalProducts.filter((product) => product.weight === '0.3');
+    const smallShopColumnSums = shopUsers.map((user) =>
+      smallProducts.reduce(
+        (sum, product) => sum + getSummaryShipment(user.id, product.id),
+        0
+      )
+    );
+    const sumSmallByLocation = (location) =>
+      shopUsers.reduce(
+        (acc, user, shopIndex) =>
+          (user.location || 'Город') === location ? acc + smallShopColumnSums[shopIndex] : acc,
+        0
+      );
+
+    const citySmallSum = sumSmallByLocation('Город');
+    const villageSmallSum = sumSmallByLocation('Село');
+
     return {
       shopColumnSums,
       sumTotal,
@@ -342,19 +359,26 @@ function Dashboard() {
       sumOverall,
       cityShopsSum,
       villageShopsSum,
+      citySmallSum,
+      villageSmallSum,
     };
   }, [globalProducts, shopUsers, warehouseInputs, motorInputs, shipmentMap]);
 
-  const buildCityVillageExportShops = (cityShopsSum, villageShopsSum) =>
+  const buildCityVillageExportShops = (
+    cityShopsSum,
+    villageShopsSum,
+    cityLabel = 'Город',
+    villageLabel = 'Село'
+  ) =>
     shopUsers.map((_, shopIndex) => {
       if (shopIndex === 3) {
-        return 'Город';
+        return cityLabel;
       }
       if (shopIndex === 4) {
         return cityShopsSum;
       }
       if (shopIndex === 6) {
-        return 'Село';
+        return villageLabel;
       }
       if (shopIndex === 7) {
         return villageShopsSum;
@@ -390,6 +414,8 @@ function Dashboard() {
         sumOverall,
         cityShopsSum,
         villageShopsSum,
+        citySmallSum,
+        villageSmallSum,
       } = getSummaryTableAggregates();
 
       data.push(
@@ -405,6 +431,15 @@ function Dashboard() {
         {
           productName: '',
           shops: buildCityVillageExportShops(cityShopsSum, villageShopsSum),
+          total: '',
+          warehouse: '',
+          warehouseAfterShipment: '',
+          warehouseMotornaya: '',
+          totalRemain: '',
+        },
+        {
+          productName: '',
+          shops: buildCityVillageExportShops(citySmallSum, villageSmallSum, '0.3', '0.3'),
           total: '',
           warehouse: '',
           warehouseAfterShipment: '',
@@ -872,6 +907,8 @@ function Dashboard() {
       sumOverall,
       cityShopsSum,
       villageShopsSum,
+      citySmallSum,
+      villageSmallSum,
     } = getSummaryTableAggregates();
 
     return (
@@ -987,6 +1024,38 @@ function Dashboard() {
                     return (
                       <td key={user.id} className="summary-num">
                         {formatSummaryCell(villageShopsSum)}
+                      </td>
+                    );
+                  }
+                  return <td key={user.id} className="summary-num" />;
+                })}
+                <td className="summary-num" />
+                <td className="summary-num" />
+                <td className="summary-num" />
+                <td className="summary-num" />
+                <td className="summary-num" />
+              </tr>
+              <tr>
+                <td className="product-name-col" />
+                {shopUsers.map((user, shopIndex) => {
+                  if (shopIndex === 3 || shopIndex === 6) {
+                    return (
+                      <td key={user.id} className="summary-num">
+                        0.3
+                      </td>
+                    );
+                  }
+                  if (shopIndex === 4) {
+                    return (
+                      <td key={user.id} className="summary-num">
+                        {formatSummaryCell(citySmallSum)}
+                      </td>
+                    );
+                  }
+                  if (shopIndex === 7) {
+                    return (
+                      <td key={user.id} className="summary-num">
+                        {formatSummaryCell(villageSmallSum)}
                       </td>
                     );
                   }
