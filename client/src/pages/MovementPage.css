@@ -77,6 +77,24 @@
   min-width: 160px;
 }
 
+.movement-select-row-default {
+  flex-wrap: nowrap;
+}
+
+.movement-select-row-default .movement-select {
+  flex: 0 1 auto;
+}
+
+.movement-filter .movement-default-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 400;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
 .movement-position-btn {
   white-space: nowrap;
 }

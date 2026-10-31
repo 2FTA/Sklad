@@ -11,17 +11,21 @@ import './Dashboard.css';
 import './AdminPages.css';
 import './MovementPage.css';
 
+const DEFAULT_FROM_STORAGE_KEY = 'default_from_value';
+const DEFAULT_TO_STORAGE_KEY = 'default_to_value';
+
+// Значения вида user_<id> / custom_<id> — ID магазинов и кастомных позиций могут совпадать
 function toPositionKey(position) {
-  return `${position.kind}-${position.id}`;
+  return `${position.kind}_${position.id}`;
 }
 
 function parsePositionKey(key) {
   if (!key) return null;
-  const dashIndex = key.indexOf('-');
-  if (dashIndex === -1) return null;
+  const separatorIndex = key.indexOf('_');
+  if (separatorIndex === -1) return null;
   return {
-    kind: key.slice(0, dashIndex),
-    id: parseInt(key.slice(dashIndex + 1), 10),
+    kind: key.slice(0, separatorIndex),
+    id: parseInt(key.slice(separatorIndex + 1), 10),
   };
 }
 
@@ -243,6 +247,9 @@ function MovementPage() {
   const [movementType, setMovementType] = useState('');
   const [fromUserId, setFromUserId] = useState('');
   const [toUserId, setToUserId] = useState('');
+  const [isDefaultFrom, setIsDefaultFrom] = useState(false);
+  const [isDefaultTo, setIsDefaultTo] = useState(false);
+  const defaultsAppliedRef = useRef(false);
   const [exporting, setExporting] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -301,6 +308,70 @@ function MovementPage() {
       prev && allPositions.some((position) => toPositionKey(position) === prev) ? prev : ''
     );
   }, [allPositions]);
+
+  useEffect(() => {
+    // ждём, пока загрузятся и магазины, и кастомные позиции
+    if (shopsLoading || defaultsAppliedRef.current) return;
+    defaultsAppliedRef.current = true;
+
+    const applySavedDefault = (storageKey, setValue, setIsDefault) => {
+      const saved = localStorage.getItem(storageKey);
+      if (!saved) return;
+
+      if (allPositions.some((position) => toPositionKey(position) === saved)) {
+        setValue(saved);
+        setIsDefault(true);
+      } else {
+        // позиция удалена — сбрасываем выбор и очищаем localStorage
+        localStorage.removeItem(storageKey);
+      }
+    };
+
+    applySavedDefault(DEFAULT_FROM_STORAGE_KEY, setFromUserId, setIsDefaultFrom);
+    applySavedDefault(DEFAULT_TO_STORAGE_KEY, setToUserId, setIsDefaultTo);
+  }, [shopsLoading, allPositions]);
+
+  const handleFromChange = (value) => {
+    setFromUserId(value);
+    if (isDefaultFrom) {
+      if (value) {
+        localStorage.setItem(DEFAULT_FROM_STORAGE_KEY, value);
+      } else {
+        localStorage.removeItem(DEFAULT_FROM_STORAGE_KEY);
+        setIsDefaultFrom(false);
+      }
+    }
+  };
+
+  const handleToChange = (value) => {
+    setToUserId(value);
+    if (isDefaultTo) {
+      if (value) {
+        localStorage.setItem(DEFAULT_TO_STORAGE_KEY, value);
+      } else {
+        localStorage.removeItem(DEFAULT_TO_STORAGE_KEY);
+        setIsDefaultTo(false);
+      }
+    }
+  };
+
+  const handleDefaultFromToggle = (checked) => {
+    setIsDefaultFrom(checked);
+    if (checked && fromUserId) {
+      localStorage.setItem(DEFAULT_FROM_STORAGE_KEY, fromUserId);
+    } else {
+      localStorage.removeItem(DEFAULT_FROM_STORAGE_KEY);
+    }
+  };
+
+  const handleDefaultToToggle = (checked) => {
+    setIsDefaultTo(checked);
+    if (checked && toUserId) {
+      localStorage.setItem(DEFAULT_TO_STORAGE_KEY, toUserId);
+    } else {
+      localStorage.removeItem(DEFAULT_TO_STORAGE_KEY);
+    }
+  };
 
   const allSelected = Boolean(movementType && fromUserId && toUserId);
 
@@ -406,9 +477,18 @@ function MovementPage() {
       await api.deleteCustomPosition(id);
       setCustomPositions((prev) => prev.filter((position) => position.id !== id));
 
-      const deletedKey = `custom-${id}`;
+      const deletedKey = `custom_${id}`;
       setFromUserId((prev) => (prev === deletedKey ? '' : prev));
       setToUserId((prev) => (prev === deletedKey ? '' : prev));
+
+      if (localStorage.getItem(DEFAULT_FROM_STORAGE_KEY) === deletedKey) {
+        localStorage.removeItem(DEFAULT_FROM_STORAGE_KEY);
+        setIsDefaultFrom(false);
+      }
+      if (localStorage.getItem(DEFAULT_TO_STORAGE_KEY) === deletedKey) {
+        localStorage.removeItem(DEFAULT_TO_STORAGE_KEY);
+        setIsDefaultTo(false);
+      }
     } catch (err) {
       setPositionActionError(err.message);
     } finally {
@@ -566,38 +646,60 @@ function MovementPage() {
 
           <div className="movement-filter">
             <label htmlFor="movement-from">От кого</label>
-            <select
-              id="movement-from"
-              className="movement-select"
-              value={fromUserId}
-              onChange={(e) => setFromUserId(e.target.value)}
-              disabled={allPositions.length === 0}
-            >
-              <option value="">—</option>
-              {allPositions.map((position) => (
-                <option key={toPositionKey(position)} value={toPositionKey(position)}>
-                  {position.name}
-                </option>
-              ))}
-            </select>
+            <div className="movement-select-row movement-select-row-default">
+              <select
+                id="movement-from"
+                className="movement-select"
+                value={fromUserId}
+                onChange={(e) => handleFromChange(e.target.value)}
+                disabled={allPositions.length === 0}
+              >
+                <option value="">—</option>
+                {allPositions.map((position) => (
+                  <option key={toPositionKey(position)} value={toPositionKey(position)}>
+                    {position.name}
+                  </option>
+                ))}
+              </select>
+              <label className="movement-default-label">
+                <input
+                  type="checkbox"
+                  checked={isDefaultFrom}
+                  disabled={!fromUserId}
+                  onChange={(e) => handleDefaultFromToggle(e.target.checked)}
+                />
+                По умолчанию
+              </label>
+            </div>
           </div>
 
           <div className="movement-filter">
             <label htmlFor="movement-to">Кому</label>
-            <select
-              id="movement-to"
-              className="movement-select"
-              value={toUserId}
-              onChange={(e) => setToUserId(e.target.value)}
-              disabled={allPositions.length === 0}
-            >
-              <option value="">—</option>
-              {allPositions.map((position) => (
-                <option key={toPositionKey(position)} value={toPositionKey(position)}>
-                  {position.name}
-                </option>
-              ))}
-            </select>
+            <div className="movement-select-row movement-select-row-default">
+              <select
+                id="movement-to"
+                className="movement-select"
+                value={toUserId}
+                onChange={(e) => handleToChange(e.target.value)}
+                disabled={allPositions.length === 0}
+              >
+                <option value="">—</option>
+                {allPositions.map((position) => (
+                  <option key={toPositionKey(position)} value={toPositionKey(position)}>
+                    {position.name}
+                  </option>
+                ))}
+              </select>
+              <label className="movement-default-label">
+                <input
+                  type="checkbox"
+                  checked={isDefaultTo}
+                  disabled={!toUserId}
+                  onChange={(e) => handleDefaultToToggle(e.target.checked)}
+                />
+                По умолчанию
+              </label>
+            </div>
           </div>
 
           <div className="movement-filter movement-filter-with-actions">
