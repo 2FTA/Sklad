@@ -323,8 +323,15 @@ function Dashboard() {
       sumOverall += summaryNumeric(overall);
     });
 
-    const cityShopsSum = shopColumnSums.slice(0, 8).reduce((acc, value) => acc + value, 0);
-    const villageShopsSum = shopColumnSums.slice(8).reduce((acc, value) => acc + value, 0);
+    const sumByLocation = (location) =>
+      shopUsers.reduce(
+        (acc, user, shopIndex) =>
+          (user.location || 'Город') === location ? acc + shopColumnSums[shopIndex] : acc,
+        0
+      );
+
+    const cityShopsSum = sumByLocation('Город');
+    const villageShopsSum = sumByLocation('Село');
 
     return {
       shopColumnSums,
