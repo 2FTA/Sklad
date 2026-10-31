@@ -280,6 +280,12 @@ export const api = {
       `/summary/motor-report?userId=${encodeURIComponent(userId)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
     ),
 
+  saveMotorShipments: (items) =>
+    request('/stocks/motor-shipments', {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+    }),
+
   updateMotorToday: (userId, date, items) =>
     request('/summary/motor-today', {
       method: 'PUT',

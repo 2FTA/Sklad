@@ -18,17 +18,24 @@ function UserPage() {
   const [activeCategory, setActiveCategory] = useState('beer');
   const [products, setProducts] = useState([]);
   const [quantities, setQuantities] = useState({});
+  const [shipmentInputs, setShipmentInputs] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const isBeer = activeCategory === 'beer';
+  const isShipments = activeCategory === 'shipments';
+  const isHousehold = activeCategory === 'household';
+  const showShipmentsTab = isUser && currentUser?.login === 'Моторная';
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const productsData = isMotor
         ? await api.getProducts()
-        : await api.getProducts(undefined, activeCategory);
+        : await api.getProducts(
+            undefined,
+            activeCategory === 'shipments' ? 'beer' : activeCategory
+          );
 
       setProducts(productsData);
 
@@ -37,7 +44,11 @@ function UserPage() {
         inputs[p.id] = '';
       });
 
-      setQuantities(inputs);
+      if (activeCategory === 'shipments') {
+        setShipmentInputs(inputs);
+      } else {
+        setQuantities(inputs);
+      }
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
@@ -57,6 +68,39 @@ function UserPage() {
   const handleLogout = () => {
     clearAuth();
     navigate('/login');
+  };
+
+  const handleSaveShipments = async (e) => {
+    e.preventDefault();
+
+    const items = products
+      .filter((p) => shipmentInputs[p.id] !== undefined && shipmentInputs[p.id] !== '')
+      .map((p) => ({
+        productId: p.id,
+        quantity: parseInt(shipmentInputs[p.id], 10),
+      }));
+
+    if (items.length === 0) {
+      showToast('Укажите количество хотя бы для одного товара', 'error');
+      return;
+    }
+
+    if (items.some((item) => isNaN(item.quantity) || item.quantity < 0)) {
+      showToast('Некорректное значение отгрузки', 'error');
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      await api.saveMotorShipments(items);
+      showToast('Отгрузки сохранены', 'success');
+      await loadData();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSave = async (e) => {
@@ -125,11 +169,20 @@ function UserPage() {
             </button>
             <button
               type="button"
-              className={`product-category-tab ${!isBeer ? 'active' : ''}`}
+              className={`product-category-tab ${isHousehold ? 'active' : ''}`}
               onClick={() => handleCategoryChange('household')}
             >
               Хоз товары
             </button>
+            {showShipmentsTab && (
+              <button
+                type="button"
+                className={`product-category-tab ${isShipments ? 'active' : ''}`}
+                onClick={() => handleCategoryChange('shipments')}
+              >
+                Отгрузки
+              </button>
+            )}
           </div>
         )}
 
@@ -139,6 +192,28 @@ function UserPage() {
           <div className="loading">Загрузка...</div>
         ) : products.length === 0 ? (
           <div className="empty-state">Список товаров пуст</div>
+        ) : isShipments ? (
+          <form className="user-stock-form" onSubmit={handleSaveShipments}>
+            <ul className="user-product-list">
+              {products.map((product) => (
+                <li key={product.id} className="user-product-item">
+                  <span className="user-product-name">{product.name}</span>
+                  <input
+                    type="number"
+                    className="user-qty-input"
+                    min="0"
+                    value={shipmentInputs[product.id] ?? ''}
+                    onChange={(e) =>
+                      setShipmentInputs({ ...shipmentInputs, [product.id]: e.target.value })
+                    }
+                  />
+                </li>
+              ))}
+            </ul>
+            <button type="submit" className="btn-primary btn-save" disabled={saving}>
+              {saving ? 'Сохранение...' : 'Сохранить'}
+            </button>
+          </form>
         ) : (
           <form className="user-stock-form" onSubmit={handleSave}>
             {!isBeer && !isMotor && (

@@ -7,6 +7,7 @@ const {
   getExistingDailyStock,
   processAdminStockInventory,
   processQuantityInventory,
+  syncShipmentInventoryLot,
 } = require('../utils/inventoryService');
 
 const router = express.Router();
@@ -250,6 +251,108 @@ router.post('/', async (req, res) => {
     console.error(err);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
+});
+
+const SHIPMENTS_TAB_LOGIN = 'Моторная';
+
+router.post('/motor-shipments', async (req, res) => {
+  const { items } = req.body;
+  const userId = req.user.id;
+  const date = todayISO();
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Нет данных' });
+  }
+
+  try {
+    const owner = await pool.query('SELECT login FROM users WHERE id = $1', [userId]);
+
+    if (owner.rows.length === 0 || owner.rows[0].login !== SHIPMENTS_TAB_LOGIN) {
+      return res.status(403).json({ error: 'Доступ запрещён' });
+    }
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Ошибка сервера' });
+  }
+
+  const client = await pool.connect();
+  const saved = [];
+
+  try {
+    await client.query('BEGIN');
+
+    for (const item of items) {
+      const productId = parseInt(item.productId, 10);
+      const quantity = parseInt(item.quantity, 10);
+
+      if (isNaN(productId) || isNaN(quantity) || quantity < 0) {
+        throw new Error('Некорректные данные отгрузок');
+      }
+
+      const product = await client.query(
+        'SELECT id FROM products WHERE id = $1 AND user_id = $2',
+        [productId, userId]
+      );
+
+      if (product.rows.length === 0) {
+        throw new Error(`Товар ${productId} не найден`);
+      }
+
+      const before = await getExistingDailyStock(client, productId, userId, date);
+
+      // Меняется только shipments: остаток, перемещение и возврат не затрагиваются
+      const result = await client.query(
+        `INSERT INTO daily_stocks (product_id, user_id, date, quantity, shipments, movement, "return")
+         VALUES ($1, $2, $3::date, NULL, $4, 0, 0)
+         ON CONFLICT (product_id, date)
+         DO UPDATE SET shipments = $4
+         RETURNING product_id AS "productId", date::text AS date, quantity, shipments,
+                   movement, "return" AS "return"`,
+        [productId, userId, date, quantity]
+      );
+
+      saved.push(result.rows[0]);
+
+      // Партия FIFO (inventory_lots) — как при обычной отгрузке из админки
+      await syncShipmentInventoryLot(
+        client,
+        productId,
+        userId,
+        date,
+        quantity,
+        before?.shipments ?? 0
+      );
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    const message = err.message || 'Ошибка сохранения отгрузок';
+    const status = /не найден|некорректн/i.test(message) ? 400 : 500;
+    return res.status(status).json({ error: message });
+  } finally {
+    client.release();
+  }
+
+  for (const savedRow of saved) {
+    try {
+      await syncDailyStockToReport(
+        pool,
+        userId,
+        date,
+        savedRow.productId,
+        savedRow.quantity,
+        savedRow.shipments,
+        savedRow.movement,
+        savedRow.return
+      );
+    } catch (syncErr) {
+      console.error('Ошибка синхронизации отчета:', syncErr);
+    }
+  }
+
+  res.json({ success: true, date, saved });
 });
 
 router.get('/today', adminOnly, async (req, res) => {
