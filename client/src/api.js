@@ -154,6 +154,12 @@ export const api = {
       body: JSON.stringify({ orderIndex }),
     }),
 
+  updateUserLocation: (userId, location) =>
+    request(`/users/${userId}/location`, {
+      method: 'PUT',
+      body: JSON.stringify({ location }),
+    }),
+
   updateUserCapacity: (id, capacity) =>
     request(`/users/${id}/capacity`, {
       method: 'PUT',

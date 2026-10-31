@@ -139,6 +139,16 @@ function UsersManagement() {
     }
   };
 
+  const handleLocationChange = async (userId, newLocation) => {
+    try {
+      await api.updateUserLocation(userId, newLocation);
+      flash('Место обновлено');
+      await loadUsers();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
   const handleCapacitySave = async (userId) => {
     const value = capacityInputs[userId];
     if (value === undefined || value === '') return;
@@ -174,6 +184,7 @@ function UsersManagement() {
                   <th>Роль</th>
                   <th>Вместимость</th>
                   <th className="text-center">Порядок</th>
+                  <th>Место</th>
                   <th>Действия</th>
                 </tr>
               </thead>
@@ -209,6 +220,20 @@ function UsersManagement() {
                           }
                           onBlur={() => handleOrderSave(user.id)}
                         />
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td>
+                      {user.role === 'user' ? (
+                        <select
+                          className="user-location-select"
+                          value={user.location || 'Город'}
+                          onChange={(e) => handleLocationChange(user.id, e.target.value)}
+                        >
+                          <option value="Город">Город</option>
+                          <option value="Село">Село</option>
+                        </select>
                       ) : (
                         '—'
                       )}

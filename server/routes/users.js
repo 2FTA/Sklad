@@ -10,7 +10,7 @@ router.use(authMiddleware, adminOnly);
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, login, role, capacity, order_index AS "orderIndex"
+      `SELECT id, login, role, capacity, order_index AS "orderIndex", location
        FROM users
        ORDER BY
          CASE role WHEN 'admin' THEN 1 WHEN 'motor' THEN 2 ELSE 3 END,
@@ -76,6 +76,33 @@ router.put('/:id/order', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Ошибка обновления порядка' });
+  }
+});
+
+router.put('/:id/location', async (req, res) => {
+  const userId = parseInt(req.params.id, 10);
+  const { location } = req.body;
+
+  if (!['Село', 'Город'].includes(location)) {
+    return res.status(400).json({ error: 'Некорректное значение места' });
+  }
+
+  try {
+    const user = await pool.query('SELECT role FROM users WHERE id = $1', [userId]);
+
+    if (user.rows.length === 0) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    if (user.rows[0].role !== 'user') {
+      return res.status(400).json({ error: 'Место меняется только для магазинов' });
+    }
+
+    await pool.query('UPDATE users SET location = $1 WHERE id = $2', [location, userId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка обновления места' });
   }
 });
 

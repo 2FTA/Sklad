@@ -21,6 +21,10 @@ async function ensureUsersSchema(pool) {
   `);
 
   await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS location VARCHAR(10) DEFAULT 'Город'
+  `);
+
+  await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS users_motor_role_unique ON users (role) WHERE role = 'motor'
   `);
 }
