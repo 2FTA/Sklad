@@ -862,13 +862,6 @@ function Dashboard() {
   };
 
   const renderDateCell = (date) => {
-    const dateStr = toISODate(date);
-    const isToday = dateStr === todayStr;
-
-    if (!isToday) {
-      return <td className="date-col">{formatDateLabel(date)}</td>;
-    }
-
     return (
       <td className="date-col date-col-with-legend">
         <div className="date-cell-inner">

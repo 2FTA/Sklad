@@ -649,6 +649,19 @@
   color: #8b00ff;
 }
 
+.dashboard .date-legend {
+  align-items: stretch;
+}
+
+.dashboard .date-legend-item {
+  box-sizing: border-box;
+  border-bottom: 1px solid #000;
+}
+
+.dashboard .date-legend-item:last-child {
+  border-bottom: none;
+}
+
 .stock-grid-table tbody .date-col {
   background-color: #fff;
 }
