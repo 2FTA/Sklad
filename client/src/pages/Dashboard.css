@@ -662,6 +662,45 @@
   border-bottom: none;
 }
 
+/* Сквозные линии между 5 строками: вертикальных отступов у ячеек нет, у всех строк одна высота */
+.dashboard .stock-grid-table tbody .date-col.date-col-with-legend,
+.dashboard .stock-grid-table tbody .stock-cell:not(.empty-cell):not(.motor-report-cell) {
+  padding: 0 !important;
+}
+
+.dashboard .stock-grid-table tbody .date-cell-inner {
+  justify-content: space-between;
+}
+
+.dashboard .stock-grid-table tbody .date-label {
+  text-align: left;
+  padding-left: 12px;
+}
+
+.dashboard .stock-grid-table tbody .date-legend {
+  flex: 1;
+  text-align: right;
+}
+
+.dashboard .stock-grid-table tbody .date-legend-item {
+  justify-content: flex-end;
+  padding-right: 12px;
+}
+
+.dashboard .stock-grid-table tbody .stock-cell-inner {
+  align-items: stretch;
+}
+
+.dashboard .stock-grid-table tbody .stock-cell-row {
+  box-sizing: border-box;
+  padding: 0 8px;
+  border-bottom: 1px solid #000;
+}
+
+.dashboard .stock-grid-table tbody .stock-cell-row:last-child {
+  border-bottom: none;
+}
+
 .stock-grid-table tbody .date-col {
   background-color: #fff;
 }
