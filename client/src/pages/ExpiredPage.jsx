@@ -24,10 +24,63 @@ function ExpiredPage() {
   const { items, loading, refreshExpired, markChecked, isChecked, resetExpiredStatus } =
     useExpired();
   const [deletingLotId, setDeletingLotId] = useState(null);
+  const [fifoEnabled, setFifoEnabled] = useState(true);
+  const [fifoLoading, setFifoLoading] = useState(true);
+  const [fifoSaving, setFifoSaving] = useState(false);
 
   useEffect(() => {
     refreshExpired();
   }, [refreshExpired]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    api
+      .getFifoEnabled()
+      .then((data) => {
+        if (!cancelled) {
+          setFifoEnabled(Boolean(data.enabled));
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          showToast(err.message || 'Не удалось загрузить FIFO', 'error');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setFifoLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showToast]);
+
+  const handleFifoToggle = async () => {
+    const nextEnabled = !fifoEnabled;
+    const confirmed = window.confirm(
+      nextEnabled
+        ? 'Включить FIFO? Остатки в партиях нужно будет выровнять вручную.'
+        : 'Выключить FIFO? Партии не будут создаваться и списываться.'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setFifoSaving(true);
+    try {
+      const data = await api.setFifoEnabled(nextEnabled);
+      setFifoEnabled(Boolean(data.enabled));
+      await refreshExpired({ silent: true });
+    } catch (err) {
+      showToast(err.message || 'Не удалось изменить FIFO', 'error');
+    } finally {
+      setFifoSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (loading || items.length === 0) {
@@ -67,6 +120,16 @@ function ExpiredPage() {
       <AdminTopBar title="Просрочка" />
 
       <div className="content-area admin-content-area">
+        <div className="expired-toolbar">
+          <button
+            type="button"
+            className={`fifo-toggle-btn ${fifoEnabled ? 'fifo-on' : 'fifo-off'}`}
+            onClick={handleFifoToggle}
+            disabled={fifoLoading || fifoSaving}
+          >
+            {fifoLoading ? 'FIFO...' : fifoEnabled ? 'FIFO Включен' : 'FIFO Выключен'}
+          </button>
+        </div>
         {loading ? (
           <div className="loading">Загрузка...</div>
         ) : items.length === 0 ? (

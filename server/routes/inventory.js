@@ -6,6 +6,7 @@ const {
   consumeInventory,
 } = require('../utils/inventoryService');
 const { buildInvoicePayload } = require('../utils/invoicePayload');
+const { isFifoEnabled } = require('../utils/fifoSettings');
 
 const router = express.Router();
 
@@ -173,6 +174,10 @@ router.post('/consume', async (req, res) => {
 
 router.get('/expired/check', async (req, res) => {
   try {
+    if (!(await isFifoEnabled())) {
+      return res.json({ hasExpired: false, count: 0 });
+    }
+
     const result = await pool.query('SELECT COUNT(*)::int AS count FROM get_expired_lots()');
     const count = result.rows[0]?.count ?? 0;
 
@@ -185,6 +190,10 @@ router.get('/expired/check', async (req, res) => {
 
 router.get('/expired', async (req, res) => {
   try {
+    if (!(await isFifoEnabled())) {
+      return res.json([]);
+    }
+
     const result = await pool.query('SELECT * FROM get_expired_lots()');
 
     const rows = result.rows.map((row) => ({

@@ -1,3 +1,33 @@
+.expired-toolbar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-shrink: 0;
+}
+
+.fifo-toggle-btn {
+  border: none;
+  color: #fff;
+  border-radius: 8px;
+  padding: 0.55rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.fifo-toggle-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.fifo-toggle-btn.fifo-on {
+  background: #16a34a;
+}
+
+.fifo-toggle-btn.fifo-off {
+  background: #dc2626;
+}
+
 .expired-table-wrapper {
   flex: 1;
   min-height: 0;

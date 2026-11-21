@@ -18,6 +18,7 @@ const invoicesRoutes = require('./routes/invoices');
 
 const globalProductsRoutes = require('./routes/globalProducts');
 const householdRoutes = require('./routes/household');
+const settingsRoutes = require('./routes/settings');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -38,6 +39,7 @@ app.use('/api/movement-exports', movementExportsRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/invoices', invoicesRoutes);
 app.use('/api/household', householdRoutes);
+app.use('/api/settings', settingsRoutes);
 
 app.use('/auth', authRoutes);
 app.use('/users', usersRoutes);
@@ -52,6 +54,7 @@ app.use('/movement-exports', movementExportsRoutes);
 app.use('/inventory', inventoryRoutes);
 app.use('/invoices', invoicesRoutes);
 app.use('/household', householdRoutes);
+app.use('/settings', settingsRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });

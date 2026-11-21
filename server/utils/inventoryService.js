@@ -1,3 +1,5 @@
+const { isFifoEnabled } = require('./fifoSettings');
+
 function todayISO() {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -43,6 +45,10 @@ async function resolveGlobalProduct(client, productId, shopId) {
 }
 
 async function addInventoryLotQuantity(client, productId, shopId, quantity) {
+  if (!(await isFifoEnabled(client))) {
+    return null;
+  }
+
   const amount = parseInt(quantity, 10);
 
   if (!amount || amount <= 0) {
@@ -78,6 +84,10 @@ async function syncShipmentInventoryLot(
   shipments,
   oldShipments = 0
 ) {
+  if (!(await isFifoEnabled(client))) {
+    return null;
+  }
+
   if (date !== todayISO()) {
     return null;
   }
@@ -143,6 +153,10 @@ async function receiveInventory(client, productId, shopId, quantity) {
 }
 
 async function consumeInventory(client, productId, shopId, quantity) {
+  if (!(await isFifoEnabled(client))) {
+    return;
+  }
+
   const amount = parseInt(quantity, 10);
 
   if (!amount || amount <= 0) {
@@ -186,6 +200,10 @@ async function getPreviousDayQuantity(client, productId, shopId, date) {
 }
 
 async function processQuantityDiff(client, productId, shopId, date, currentQuantity) {
+  if (!(await isFifoEnabled(client))) {
+    return;
+  }
+
   const previousQuantity = await getPreviousDayQuantity(client, productId, shopId, date);
   const diff = previousQuantity - currentQuantity;
 
@@ -197,6 +215,10 @@ async function processQuantityDiff(client, productId, shopId, date, currentQuant
 }
 
 async function processAdminStockInventory(client, productId, shopId, date, before, item) {
+  if (!(await isFifoEnabled(client))) {
+    return;
+  }
+
   const oldShipments = before?.shipments ?? 0;
   const oldMovement = before?.movement ?? 0;
   const oldReturn = before?.return ?? 0;
@@ -229,6 +251,10 @@ async function processAdminStockInventory(client, productId, shopId, date, befor
 }
 
 async function processQuantityInventory(client, productId, shopId, date, quantity) {
+  if (!(await isFifoEnabled(client))) {
+    return;
+  }
+
   if (date !== todayISO()) {
     return;
   }

@@ -325,6 +325,14 @@ export const api = {
 
   getMovementData: (userId, type) => request(`/movement/${userId}?type=${type}`),
 
+  getFifoEnabled: () => request('/settings/fifo'),
+
+  setFifoEnabled: (enabled) =>
+    request('/settings/fifo', {
+      method: 'PUT',
+      body: JSON.stringify({ enabled }),
+    }),
+
   getExpiredLots: () => request('/inventory/expired'),
 
   checkExpiredLots: () => request('/inventory/expired/check'),
