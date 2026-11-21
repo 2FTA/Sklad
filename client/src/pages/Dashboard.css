@@ -932,8 +932,48 @@
   border-color: #2563eb;
 }
 
+.store-edit-wrap {
+  position: relative;
+  margin-left: auto;
+}
+
 .store-edit-remainder-btn {
   margin-left: auto;
+}
+
+.store-date-picker {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 40;
+  min-width: 180px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.store-date-picker-item {
+  display: block;
+  width: 100%;
+  padding: 0.45rem 0.75rem;
+  border: none;
+  background: #fff;
+  text-align: left;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.store-date-picker-item:hover {
+  background: #f1f5f9;
+}
+
+.dashboard .stock-cell-row input[type='number'] {
+  max-height: 1.2rem;
+  height: 1.2rem;
+  box-sizing: border-box;
 }
 
 .motor-report-toolbar {

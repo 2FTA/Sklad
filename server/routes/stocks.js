@@ -42,12 +42,76 @@ function defaultDateRange() {
   return { startDate: formatDate(start), endDate: formatDate(end) };
 }
 
+function parseOptionalNonNegInt(value) {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  const parsed = parseInt(value, 10);
+  if (isNaN(parsed) || parsed < 0) {
+    throw new Error('Некорректные данные остатков');
+  }
+  return parsed;
+}
+
+async function saveManualDailyStockFields(client, productId, targetUserId, date, fields) {
+  const insertQuantity = fields.quantity !== undefined ? fields.quantity : null;
+  const insertShipments = fields.shipments !== undefined ? fields.shipments : 0;
+  const insertMovement = fields.movement !== undefined ? fields.movement : 0;
+  const insertReturn = fields.return !== undefined ? fields.return : 0;
+
+  const updates = [];
+  const values = [
+    productId,
+    targetUserId,
+    date,
+    insertQuantity,
+    insertShipments,
+    insertMovement,
+    insertReturn,
+  ];
+  let paramIndex = 8;
+
+  if (fields.quantity !== undefined) {
+    updates.push(`quantity = $${paramIndex++}`);
+    values.push(fields.quantity);
+  }
+  if (fields.shipments !== undefined) {
+    updates.push(`shipments = $${paramIndex++}`);
+    values.push(fields.shipments);
+  }
+  if (fields.movement !== undefined) {
+    updates.push(`movement = $${paramIndex++}`);
+    values.push(fields.movement);
+  }
+  if (fields.return !== undefined) {
+    updates.push(`"return" = $${paramIndex++}`);
+    values.push(fields.return);
+  }
+
+  if (updates.length === 0) {
+    return null;
+  }
+
+  const result = await client.query(
+    `INSERT INTO daily_stocks (product_id, user_id, date, quantity, shipments, movement, "return")
+     VALUES ($1, $2, $3::date, $4, $5, $6, $7)
+     ON CONFLICT (product_id, date)
+     DO UPDATE SET ${updates.join(', ')}
+     RETURNING product_id AS "productId", date::text AS date, quantity, shipments,
+               movement, "return" AS "return"`,
+    values
+  );
+
+  return result.rows[0];
+}
+
 router.post('/', async (req, res) => {
   const targetUserId = req.body.userId
     ? parseInt(req.body.userId, 10)
     : req.user.id;
   const date = req.body.date || todayISO();
   const { stocks } = req.body;
+  const manualEdit = req.body.manualEdit === true && req.user.role === 'admin';
 
   if (!Array.isArray(stocks) || stocks.length === 0) {
     return res.status(400).json({ error: 'Укажите список остатков' });
@@ -155,6 +219,28 @@ router.post('/', async (req, res) => {
           targetUserId,
           date
         );
+
+        if (manualEdit) {
+          const fields = {
+            quantity: parseOptionalNonNegInt(item.quantity),
+            shipments: parseOptionalNonNegInt(item.shipments),
+            movement: parseOptionalNonNegInt(item.movement),
+            return: parseOptionalNonNegInt(item.return),
+          };
+
+          const savedRow = await saveManualDailyStockFields(
+            client,
+            productId,
+            targetUserId,
+            date,
+            fields
+          );
+
+          if (savedRow) {
+            saved.push(savedRow);
+          }
+          continue;
+        }
 
         const hasQuantity =
           item.quantity !== undefined &&
@@ -382,6 +468,7 @@ router.put('/quantity', adminOnly, async (req, res) => {
   const targetUserId = parseInt(req.body.userId, 10);
   const date = req.body.date || todayISO();
   const { items } = req.body;
+  const manualEdit = req.body.manualEdit === true;
 
   if (!targetUserId || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: 'Укажите пользователя, дату и список остатков' });
@@ -426,15 +513,16 @@ router.put('/quantity', adminOnly, async (req, res) => {
           [productId, targetUserId, date, quantity]
         );
 
-        await client.query('UPDATE products SET quantity = $1 WHERE id = $2', [
-          quantity,
-          productId,
-        ]);
-
         const savedRow = result.rows[0];
         saved.push(savedRow);
 
-        await processQuantityInventory(client, productId, targetUserId, date, quantity);
+        if (!manualEdit) {
+          await client.query('UPDATE products SET quantity = $1 WHERE id = $2', [
+            quantity,
+            productId,
+          ]);
+          await processQuantityInventory(client, productId, targetUserId, date, quantity);
+        }
       }
 
       await client.query('COMMIT');

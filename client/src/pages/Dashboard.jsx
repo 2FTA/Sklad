@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { api } from '../api';
 import { downloadBlob } from '../utils/download';
 import AdminTopBar from '../components/AdminTopBar';
@@ -45,9 +45,11 @@ function Dashboard() {
   const [shipmentInputs, setShipmentInputs] = useState({});
   const [movementInputs, setMovementInputs] = useState({});
   const [returnInputs, setReturnInputs] = useState({});
-  const [isEditingRemainder, setIsEditingRemainder] = useState(false);
-  const [editedRemainders, setEditedRemainders] = useState({});
+  const [editingDate, setEditingDate] = useState(null);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [editedManual, setEditedManual] = useState({});
   const [savingRemainders, setSavingRemainders] = useState(false);
+  const datePickerRef = useRef(null);
   const [isEditingMotor, setIsEditingMotor] = useState(false);
   const [editedMotorValues, setEditedMotorValues] = useState({});
   const [savingMotor, setSavingMotor] = useState(false);
@@ -85,8 +87,8 @@ function Dashboard() {
   };
 
   const readTodayQuantityTotal = (productId) => {
-    if (isEditingRemainder) {
-      const edited = editedRemainders[productId];
+    if (editingDate === todayStr) {
+      const edited = editedManual[productId]?.quantity;
       if (edited !== undefined && edited !== '') {
         return parseInt(edited, 10) || 0;
       }
@@ -213,9 +215,25 @@ function Dashboard() {
   }, [activeView, isMotorView, loadSummaryData, loadUserData]);
 
   useEffect(() => {
-    setIsEditingRemainder(false);
-    setEditedRemainders({});
+    setEditingDate(null);
+    setDatePickerOpen(false);
+    setEditedManual({});
   }, [activeView]);
+
+  useEffect(() => {
+    if (!datePickerOpen) {
+      return undefined;
+    }
+
+    const handleClickOutside = (event) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(event.target)) {
+        setDatePickerOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [datePickerOpen]);
 
   const handleSelectView = (view) => {
     setActiveView(view);
@@ -591,19 +609,34 @@ function Dashboard() {
     }
   };
 
-  const getTodayQuantity = (productId) => {
-    const cell = getCellData(productId, todayStr);
-    return cell?.quantity ?? null;
+  const editableReportDates = useMemo(
+    () => dates.filter((date) => toISODate(date) !== toISODate(dates[0])),
+    [dates]
+  );
+
+  const handleManualFieldChange = (productId, field, value) => {
+    setEditedManual((prev) => ({
+      ...prev,
+      [productId]: {
+        ...(prev[productId] || {}),
+        [field]: value,
+      },
+    }));
   };
 
   const handleRemainderEditToggle = () => {
-    if (isEditingRemainder) {
-      handleSaveRemainders();
+    if (editingDate) {
+      handleSaveManualEdit();
       return;
     }
 
-    setEditedRemainders({});
-    setIsEditingRemainder(true);
+    setDatePickerOpen((open) => !open);
+  };
+
+  const handleSelectEditingDate = (dateStr) => {
+    setEditingDate(dateStr);
+    setEditedManual({});
+    setDatePickerOpen(false);
   };
 
   const handleMotorEditStart = () => {
@@ -668,49 +701,74 @@ function Dashboard() {
     }
   };
 
-  const handleSaveRemainders = async () => {
-    if (typeof activeView !== 'number') return;
+  const handleSaveManualEdit = async () => {
+    if (typeof activeView !== 'number' || !editingDate) return;
 
-    const items = [];
+    const quantityItems = [];
+    const stockItems = [];
 
     for (const product of userProducts) {
-      const original = getTodayQuantity(product.id);
-      const edited = editedRemainders[product.id];
+      const edits = editedManual[product.id] || {};
+      const parseField = (raw, label) => {
+        if (raw === undefined || raw === '') {
+          return undefined;
+        }
+        const parsed = parseInt(raw, 10);
+        if (isNaN(parsed) || parsed < 0) {
+          throw new Error(`Некорректное значение (${label})`);
+        }
+        return parsed;
+      };
+
       let quantity;
+      let shipments;
+      let movement;
+      let returnValue;
 
-      if (edited === undefined || edited === '') {
-        if (original === null || original === undefined) {
-          continue;
-        }
-        quantity = parseInt(original, 10);
-      } else {
-        quantity = parseInt(edited, 10);
-        if (isNaN(quantity) || quantity < 0) {
-          showToast('Некорректное значение остатка', 'error');
-          return;
-        }
+      try {
+        quantity = parseField(edits.quantity, 'остаток');
+        shipments = parseField(edits.shipments, 'отгрузка');
+        movement = parseField(edits.movement, 'перемещение');
+        returnValue = parseField(edits.return, 'возврат');
+      } catch (err) {
+        showToast(err.message, 'error');
+        return;
       }
 
-      if (isNaN(quantity)) {
-        continue;
+      if (quantity !== undefined) {
+        quantityItems.push({ productId: product.id, quantity });
       }
 
-      items.push({ productId: product.id, quantity });
+      if (shipments !== undefined || movement !== undefined || returnValue !== undefined) {
+        const item = { productId: product.id };
+        if (shipments !== undefined) item.shipments = shipments;
+        if (movement !== undefined) item.movement = movement;
+        if (returnValue !== undefined) item.return = returnValue;
+        stockItems.push(item);
+      }
     }
 
-    if (items.length === 0) {
-      setIsEditingRemainder(false);
-      setEditedRemainders({});
+    if (quantityItems.length === 0 && stockItems.length === 0) {
+      setEditingDate(null);
+      setEditedManual({});
       return;
     }
 
     setSavingRemainders(true);
     try {
-      const response = await api.updateStockQuantities(activeView, todayStr, items);
-      mergeSavedStockRows(response.saved);
-      setIsEditingRemainder(false);
-      setEditedRemainders({});
-      flash('Остатки сохранены');
+      const extra = { manualEdit: true };
+
+      if (quantityItems.length > 0) {
+        await api.updateStockQuantities(activeView, editingDate, quantityItems, extra);
+      }
+      if (stockItems.length > 0) {
+        await api.saveStocks(activeView, editingDate, stockItems, extra);
+      }
+
+      await loadUserData();
+      setEditingDate(null);
+      setEditedManual({});
+      flash('Данные сохранены');
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
@@ -722,8 +780,10 @@ function Dashboard() {
     const dateStr = toISODate(dates[dateIndex]);
     const cell = getCellData(product.id, dateStr);
     const isToday = dateStr === todayStr;
+    const isEditingThisDate = editingDate === dateStr;
+    const manualEdits = editedManual[product.id] || {};
 
-    if (cell === null && !isToday) {
+    if (cell === null && !isToday && !isEditingThisDate) {
       return (
         <td key={product.id} className="stock-cell empty-cell">
           —
@@ -780,20 +840,15 @@ function Dashboard() {
             )}
           </div>
           <div className="stock-cell-row">
-            {isToday && isEditingRemainder ? (
+            {isEditingThisDate ? (
               <input
                 type="number"
                 className="stock-qty-input"
                 min="0"
-                value={editedRemainders[product.id] ?? ''}
-                placeholder={
-                  hasQuantity ? String(quantity) : undefined
-                }
+                value={manualEdits.quantity ?? ''}
+                placeholder={hasQuantity ? String(quantity) : undefined}
                 onChange={(e) =>
-                  setEditedRemainders((prev) => ({
-                    ...prev,
-                    [product.id]: e.target.value,
-                  }))
+                  handleManualFieldChange(product.id, 'quantity', e.target.value)
                 }
               />
             ) : quantity !== null && quantity !== undefined ? (
@@ -803,7 +858,22 @@ function Dashboard() {
             )}
           </div>
           <div className="stock-cell-row">
-            {isToday ? (
+            {isEditingThisDate ? (
+              <input
+                type="number"
+                className="stock-shipment-input"
+                min="0"
+                value={manualEdits.shipments ?? ''}
+                placeholder={
+                  pastShipments != null && pastShipments !== 0
+                    ? String(pastShipments)
+                    : undefined
+                }
+                onChange={(e) =>
+                  handleManualFieldChange(product.id, 'shipments', e.target.value)
+                }
+              />
+            ) : isToday ? (
               <input
                 type="number"
                 className="stock-shipment-input"
@@ -821,7 +891,18 @@ function Dashboard() {
             )}
           </div>
           <div className="stock-cell-row">
-            {isToday ? (
+            {isEditingThisDate ? (
+              <input
+                type="number"
+                className="stock-shipment-input stock-movement-input"
+                min="0"
+                value={manualEdits.movement ?? ''}
+                placeholder={pastMovement !== 0 ? String(pastMovement) : undefined}
+                onChange={(e) =>
+                  handleManualFieldChange(product.id, 'movement', e.target.value)
+                }
+              />
+            ) : isToday ? (
               <input
                 type="number"
                 className="stock-shipment-input stock-movement-input"
@@ -839,7 +920,18 @@ function Dashboard() {
             )}
           </div>
           <div className="stock-cell-row">
-            {isToday ? (
+            {isEditingThisDate ? (
+              <input
+                type="number"
+                className="stock-shipment-input stock-return-input"
+                min="0"
+                value={manualEdits.return ?? ''}
+                placeholder={pastReturn !== 0 ? String(pastReturn) : undefined}
+                onChange={(e) =>
+                  handleManualFieldChange(product.id, 'return', e.target.value)
+                }
+              />
+            ) : isToday ? (
               <input
                 type="number"
                 className="stock-shipment-input stock-return-input"
@@ -1101,14 +1193,33 @@ function Dashboard() {
               <span className="store-stat-divider" />
             </>
           )}
-          <button
-            type="button"
-            className="btn-sm btn-update store-edit-remainder-btn"
-            onClick={handleRemainderEditToggle}
-            disabled={savingRemainders}
-          >
-            {isEditingRemainder ? 'сохранить' : 'изменить'}
-          </button>
+          <div className="store-edit-wrap" ref={datePickerRef}>
+            <button
+              type="button"
+              className="btn-sm btn-update store-edit-remainder-btn"
+              onClick={handleRemainderEditToggle}
+              disabled={savingRemainders}
+            >
+              {editingDate ? 'сохранить' : 'изменить'}
+            </button>
+            {datePickerOpen && !editingDate && (
+              <div className="store-date-picker">
+                {editableReportDates.map((date) => {
+                  const dateStr = toISODate(date);
+                  return (
+                    <button
+                      key={dateStr}
+                      type="button"
+                      className="store-date-picker-item"
+                      onClick={() => handleSelectEditingDate(dateStr)}
+                    >
+                      {formatDateLabel(date)}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
         <div className="stock-scroll-container">
           <div className="products-table-wrapper stock-grid-wrapper">

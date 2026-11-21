@@ -256,16 +256,16 @@ export const api = {
       body: JSON.stringify({ productId, date, shipments }),
     }),
 
-  saveStocks: (userId, date, stocks) =>
+  saveStocks: (userId, date, stocks, extra = {}) =>
     request('/stocks', {
       method: 'POST',
-      body: JSON.stringify({ userId, date, stocks }),
+      body: JSON.stringify({ userId, date, stocks, ...extra }),
     }),
 
-  updateStockQuantities: (userId, date, items) =>
+  updateStockQuantities: (userId, date, items, extra = {}) =>
     request('/stocks/quantity', {
       method: 'PUT',
-      body: JSON.stringify({ userId, date, items }),
+      body: JSON.stringify({ userId, date, items, ...extra }),
     }),
 
   getTodayShipments: (date) => {
