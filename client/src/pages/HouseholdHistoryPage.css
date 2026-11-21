@@ -185,6 +185,7 @@
 @media (max-width: 768px) {
   .household-history-toolbar {
     grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .household-history-search-wrap {
@@ -193,5 +194,20 @@
 
   .household-history-toolbar-spacer {
     display: none;
+  }
+
+  .household-history-select,
+  .household-history-search-input {
+    width: 100%;
+    font-size: 16px;
+  }
+
+  .household-history-table-wrap {
+    max-height: calc(100vh - 200px);
+  }
+
+  .household-history-col-name {
+    max-width: 120px;
+    min-width: 0;
   }
 }

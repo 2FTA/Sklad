@@ -347,3 +347,44 @@
 .btn-change:hover {
   background: #d97706;
 }
+
+@media (max-width: 768px) {
+  .bottom-form {
+    margin-top: 1rem;
+    padding: 1rem;
+  }
+
+  .bottom-form-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .bottom-form-row .form-group {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .bottom-form-row input,
+  .bottom-form-row select {
+    font-size: 16px;
+  }
+
+  .product-category-tabs {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .summary-toolbar-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .summary-scroll-container {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .summary-table .product-name-col {
+    max-width: 120px;
+  }
+}

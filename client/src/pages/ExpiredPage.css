@@ -36,3 +36,10 @@
   cursor: pointer;
   accent-color: #16a34a;
 }
+
+@media (max-width: 768px) {
+  .expired-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

@@ -448,6 +448,8 @@
 
 @media (max-width: 768px) {
   .sidebar {
+    width: 240px;
+    min-width: 240px;
     transform: translateX(-100%);
   }
 
@@ -463,6 +465,10 @@
     z-index: 99;
   }
 
+  .user-item {
+    min-height: 44px;
+  }
+
   .main-content.with-sidebar {
     margin-left: 0;
     width: 100%;
@@ -473,11 +479,125 @@
   }
 
   .content-area {
-    padding: 1rem;
+    padding: 8px;
+  }
+
+  .store-total {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.95rem;
+  }
+
+  .summary-toolbar-actions,
+  .movement-toolbar,
+  .reports-toolbar,
+  .household-toolbar,
+  .household-history-toolbar,
+  .bottom-form-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .movement-select,
+  .reports-select,
+  .household-history-select,
+  .bottom-form-row .form-group,
+  .bottom-form-row select,
+  .bottom-form-row input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .products-table-wrapper,
+  .stock-scroll-container,
+  .summary-scroll-container,
+  .reports-scroll-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .products-table {
-    min-width: 100%;
+    min-width: max-content;
+    width: max-content;
+  }
+
+  .products-table th,
+  .products-table td {
+    font-size: 12px;
+    padding: 4px;
+  }
+
+  .products-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background-color: #f1f5f9;
+  }
+
+  .products-table th:first-child,
+  .products-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    max-width: 120px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    background-color: #fff;
+  }
+
+  .products-table thead th:first-child {
+    z-index: 4;
+    background-color: #f1f5f9;
+  }
+
+  .products-table tbody tr:nth-child(even) td:first-child {
+    background-color: #f8fafc;
+  }
+
+  .stock-grid-table .date-col,
+  .summary-table .product-name-col {
+    max-width: 120px;
+  }
+
+  .stock-grid-table tbody tr.monday-row .date-col,
+  .stock-grid-table tbody tr.monday-row td:first-child {
+    background-color: #fef9c3;
+  }
+
+  .stock-grid-table tbody tr.monday-row:nth-child(even) .date-col,
+  .stock-grid-table tbody tr.monday-row:nth-child(even) td:first-child {
+    background-color: #fef08a;
+  }
+
+  .dashboard .stock-grid-table tbody .date-col.date-col-with-legend,
+  .dashboard .stock-grid-table tbody .stock-cell:not(.empty-cell):not(.motor-report-cell) {
+    padding: 0 !important;
+  }
+
+  .dashboard .stock-cell-row,
+  .dashboard .date-legend-item {
+    height: 1.35rem;
+  }
+
+  .modal {
+    width: 95vw;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  input,
+  select,
+  textarea,
+  .summary-input,
+  .stock-qty-input,
+  .stock-shipment-input,
+  .capacity-input,
+  .user-qty-input,
+  .qty-input {
+    font-size: 16px;
   }
 
   .actions-cell {

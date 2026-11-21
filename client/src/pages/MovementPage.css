@@ -244,3 +244,40 @@
   white-space: nowrap;
   margin-left: auto;
 }
+
+@media (max-width: 768px) {
+  .movement-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .movement-filter {
+    width: 100%;
+  }
+
+  .movement-select,
+  .movement-select-row-default {
+    width: 100%;
+  }
+
+  .movement-select {
+    font-size: 16px;
+  }
+
+  .movement-export-btn {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .movement-invoice-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal {
+    width: 95vw;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+}

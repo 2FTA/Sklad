@@ -90,3 +90,26 @@
   z-index: 1;
   background: #f1f5f9;
 }
+
+@media (max-width: 768px) {
+  .household-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: stretch;
+  }
+
+  .household-toolbar .btn-export,
+  .household-history-link {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .household-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .household-col-name {
+    max-width: 120px;
+  }
+}
